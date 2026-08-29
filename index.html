@@ -49,6 +49,7 @@
     width: 100%; padding: 12px; margin-top: 8px;
     border-radius: 10px; border: 1px solid #d5d8de; font-size: 15px;
   }
+  input:disabled { background: #f0f1f3; color: #aaa; }
   label { font-size: 13px; color: #666; margin-top: 12px; display: block; }
   .btn-primario {
     background: var(--azul); color: #fff; border: none; font-weight: 600;
@@ -72,9 +73,22 @@
   .mensaje { padding: 12px; border-radius: 10px; font-size: 14px; margin-top: 12px; }
   .mensaje.error { background: #fde8e6; color: var(--rojo); }
   .mensaje.exito { background: #e6f4ea; color: var(--verde); }
-  #foto-preview { width: 100%; border-radius: 10px; margin-top: 8px; display: none; }
-  .spinner { text-align: center; padding: 20px; color: #888; }
   .opcional { color: #999; font-weight: 400; }
+
+  /* Buscador tipo combobox */
+  .combo { position: relative; }
+  .combo-opciones {
+    position: absolute; z-index: 20; top: 100%; left: 0; right: 0;
+    background: #fff; border: 1px solid #d5d8de; border-top: none;
+    border-radius: 0 0 10px 10px; max-height: 220px; overflow-y: auto;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  }
+  .combo-opcion {
+    padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f1f3;
+  }
+  .combo-opcion:last-child { border-bottom: none; }
+  .combo-opcion:hover, .combo-opcion.activa { background: #eaf1fd; }
+  .combo-vacio { padding: 10px 12px; font-size: 14px; color: #999; }
 </style>
 </head>
 <body>
@@ -97,13 +111,22 @@
 
     <div id="vista-manual" class="oculto">
       <label>Sede</label>
-      <select id="select-sede" onchange="alCambiarSede()"><option value="">Cargando sedes...</option></select>
+      <div class="combo">
+        <input type="text" id="input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
+        <div class="combo-opciones oculto" id="opciones-sede"></div>
+      </div>
 
-      <label>Servicio</label>
-      <select id="select-dependencia" onchange="alCambiarDependencia()" disabled><option value="">Selecciona una sede primero</option></select>
+      <label>Servicio <span class="opcional">(opcional, para filtrar más)</span></label>
+      <div class="combo">
+        <input type="text" id="input-servicio" placeholder="Selecciona una sede primero" autocomplete="off" disabled>
+        <div class="combo-opciones oculto" id="opciones-servicio"></div>
+      </div>
 
       <label>Equipo</label>
-      <select id="select-equipo" onchange="alSeleccionarEquipoManual()" disabled><option value="">Selecciona un servicio primero</option></select>
+      <div class="combo">
+        <input type="text" id="input-equipo" placeholder="Selecciona una sede primero" autocomplete="off" disabled>
+        <div class="combo-opciones oculto" id="opciones-equipo"></div>
+      </div>
     </div>
   </div>
 
@@ -141,10 +164,6 @@
       <option value="WAGNER ROJAS">WAGNER ROJAS</option>
     </select>
 
-    <label>Foto del reporte firmado <span class="opcional">(opcional)</span></label>
-    <input type="file" id="input-foto" accept="image/*" capture="environment" onchange="previsualizarFoto(event)">
-    <img id="foto-preview">
-
     <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
     <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
 
@@ -158,7 +177,13 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItl
 
 let equipoActual = null;
 let estadoSeleccionado = null;
-let fotoBase64 = null;
+
+let sedesTodas = [];
+let serviciosTodos = [];
+let equiposTodos = []; // { descripcion, marca, serie, ...datosCompletos }
+
+let sedeSeleccionada = '';
+let servicioSeleccionado = '';
 
 /* ---------- Tabs ---------- */
 function cambiarTab(tab) {
@@ -167,7 +192,7 @@ function cambiarTab(tab) {
   document.getElementById('vista-scan').classList.toggle('oculto', tab !== 'scan');
   document.getElementById('vista-manual').classList.toggle('oculto', tab !== 'manual');
 
-  if (tab === 'manual' && document.getElementById('select-sede').options.length <= 1) {
+  if (tab === 'manual' && sedesTodas.length === 0) {
     cargarSedes();
   }
   if (tab === 'scan' && !lectorIniciado) {
@@ -207,56 +232,97 @@ function buscarPorCodigo(codigo, alTerminar) {
     .catch(() => mostrarMensaje('msg-scan', 'Error de conexión.', 'error'));
 }
 
-/* ---------- Búsqueda manual ---------- */
+/* ---------- Combobox genérico (buscador con filtro) ---------- */
+function configurarCombo(inputId, opcionesId, obtenerLista, obtenerEtiqueta, alSeleccionar) {
+  const input = document.getElementById(inputId);
+  const contenedor = document.getElementById(opcionesId);
+
+  function render(filtro) {
+    const lista = obtenerLista();
+    const texto = (filtro || '').toUpperCase();
+    const filtrada = texto ? lista.filter(item => obtenerEtiqueta(item).toUpperCase().includes(texto)) : lista;
+
+    if (filtrada.length === 0) {
+      contenedor.innerHTML = '<div class="combo-vacio">Sin resultados</div>';
+    } else {
+      contenedor.innerHTML = filtrada.slice(0, 200).map((item, i) =>
+        `<div class="combo-opcion" data-i="${i}">${obtenerEtiqueta(item)}</div>`
+      ).join('');
+      Array.from(contenedor.children).forEach((el, i) => {
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          input.value = obtenerEtiqueta(filtrada[i]);
+          contenedor.classList.add('oculto');
+          alSeleccionar(filtrada[i]);
+        });
+      });
+    }
+    contenedor.classList.remove('oculto');
+  }
+
+  input.addEventListener('input', () => render(input.value));
+  input.addEventListener('focus', () => { if (!input.disabled) render(input.value); });
+  input.addEventListener('blur', () => setTimeout(() => contenedor.classList.add('oculto'), 150));
+}
+
+/* ---------- Carga de datos ---------- */
 function cargarSedes() {
   fetch(`${API_URL}?accion=listarSedes`)
     .then(r => r.json())
     .then(data => {
-      const select = document.getElementById('select-sede');
-      select.innerHTML = '<option value="">Selecciona una sede</option>' +
-        data.sedes.map(s => `<option value="${s}">${s}</option>`).join('');
+      sedesTodas = data.sedes || [];
     });
 }
 
-function alCambiarSede() {
-  const sede = document.getElementById('select-sede').value;
-  const selectDep = document.getElementById('select-dependencia');
-  const selectEq = document.getElementById('select-equipo');
-  selectEq.disabled = true;
-  selectEq.innerHTML = '<option value="">Selecciona un servicio primero</option>';
-  if (!sede) { selectDep.disabled = true; return; }
+configurarCombo('input-sede', 'opciones-sede', () => sedesTodas, (s) => s, (sede) => {
+  sedeSeleccionada = sede;
+  servicioSeleccionado = '';
+  document.getElementById('input-servicio').value = '';
+  document.getElementById('input-servicio').disabled = false;
+  document.getElementById('input-servicio').placeholder = 'Escribe para buscar un servicio...';
+  document.getElementById('input-equipo').value = '';
+  document.getElementById('input-equipo').disabled = true;
+  document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
 
-  selectDep.innerHTML = '<option value="">Cargando...</option>';
   fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}`)
     .then(r => r.json())
-    .then(data => {
-      selectDep.disabled = false;
-      selectDep.innerHTML = '<option value="">Selecciona un servicio</option>' +
-        data.dependencias.map(d => `<option value="${d}">${d}</option>`).join('');
-    });
-}
+    .then(data => { serviciosTodos = data.dependencias || []; });
 
-function alCambiarDependencia() {
-  const sede = document.getElementById('select-sede').value;
-  const dependencia = document.getElementById('select-dependencia').value;
-  const selectEq = document.getElementById('select-equipo');
-  if (!dependencia) { selectEq.disabled = true; return; }
+  cargarEquipos();
+});
 
-  selectEq.innerHTML = '<option value="">Cargando...</option>';
-  fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sede)}&dependencia=${encodeURIComponent(dependencia)}`)
+configurarCombo('input-servicio', 'opciones-servicio', () => serviciosTodos, (s) => s, (servicio) => {
+  servicioSeleccionado = servicio;
+  document.getElementById('input-equipo').value = '';
+  cargarEquipos();
+});
+
+// Si el usuario borra el texto del servicio a mano, vuelve a traer TODOS los equipos de la sede
+document.getElementById('input-servicio').addEventListener('input', function () {
+  if (this.value.trim() === '' && servicioSeleccionado !== '') {
+    servicioSeleccionado = '';
+    cargarEquipos();
+  }
+});
+
+function cargarEquipos() {
+  if (!sedeSeleccionada) return;
+  const url = `${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}` +
+    (servicioSeleccionado ? `&dependencia=${encodeURIComponent(servicioSeleccionado)}` : '');
+  fetch(url)
     .then(r => r.json())
     .then(data => {
-      selectEq.disabled = false;
-      selectEq.innerHTML = '<option value="">Selecciona un equipo</option>' +
-        data.equipos.map(eq => `<option value='${JSON.stringify(eq).replace(/'/g, "&apos;")}'>${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'})</option>`).join('');
+      equiposTodos = data.equipos || [];
+      const inputEquipo = document.getElementById('input-equipo');
+      inputEquipo.disabled = false;
+      inputEquipo.placeholder = 'Escribe para buscar un equipo...';
     });
 }
 
-function alSeleccionarEquipoManual() {
-  const valor = document.getElementById('select-equipo').value;
-  if (!valor) return;
-  mostrarEquipo(JSON.parse(valor.replace(/&apos;/g, "'")));
-}
+configurarCombo('input-equipo', 'opciones-equipo', () => equiposTodos,
+  (eq) => `${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'})`,
+  (equipo) => mostrarEquipo(equipo)
+);
 
 /* ---------- Mostrar equipo y actualizar ---------- */
 function mostrarEquipo(equipo) {
@@ -265,8 +331,11 @@ function mostrarEquipo(equipo) {
   document.getElementById('paso-actualizar').classList.remove('oculto');
   document.getElementById('info-equipo').innerHTML = `
     <b>${equipo.descripcion}</b><br>
+    Código Patrimonial: ${equipo.codigoPatrimonial || 'S/D'}<br>
+    Código de Barras: ${equipo.codigoBarras || 'S/D'}<br>
     Sede: ${equipo.sede}<br>
     Servicio: ${equipo.dependencia}<br>
+    Vigencia del equipo: ${equipo.vigencia || 'S/D'}<br>
     Vida útil: <b>${equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo'}</b><br>
     Estado actual: <b>${equipo.estadoActual}</b>
   `;
@@ -282,22 +351,8 @@ function seleccionarEstado(estado) {
   validarFormulario();
 }
 
-function previsualizarFoto(event) {
-  const archivo = event.target.files[0];
-  if (!archivo) { fotoBase64 = null; document.getElementById('foto-preview').style.display = 'none'; return; }
-  const lector = new FileReader();
-  lector.onload = (e) => {
-    fotoBase64 = e.target.result;
-    const preview = document.getElementById('foto-preview');
-    preview.src = fotoBase64;
-    preview.style.display = 'block';
-  };
-  lector.readAsDataURL(archivo);
-}
-
 function validarFormulario() {
   const tecnico = document.getElementById('select-tecnico').value;
-  // Foto ya NO es obligatoria - solo se requiere estado + técnico
   document.getElementById('btn-guardar').disabled = !(estadoSeleccionado && tecnico);
 }
 
@@ -317,7 +372,6 @@ function guardarActualizacion() {
       marca: document.getElementById('input-marca').value.trim(),
       modelo: document.getElementById('input-modelo').value.trim(),
       serie: document.getElementById('input-serie').value.trim(),
-      fotoBase64: fotoBase64, // puede ser null, es opcional
     }),
   })
     .then(r => r.json())
@@ -341,9 +395,6 @@ function guardarActualizacion() {
 function reiniciar() {
   equipoActual = null;
   estadoSeleccionado = null;
-  fotoBase64 = null;
-  document.getElementById('foto-preview').style.display = 'none';
-  document.getElementById('input-foto').value = '';
   document.getElementById('select-tecnico').value = '';
   document.getElementById('input-marca').value = '';
   document.getElementById('input-modelo').value = '';
