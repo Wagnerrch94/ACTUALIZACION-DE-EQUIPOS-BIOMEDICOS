@@ -111,6 +111,15 @@
   <div id="paso-actualizar" class="tarjeta oculto">
     <div class="equipo-info" id="info-equipo"></div>
 
+    <label>Marca</label>
+    <input type="text" id="input-marca">
+
+    <label>Modelo</label>
+    <input type="text" id="input-modelo">
+
+    <label>Serie</label>
+    <input type="text" id="input-serie">
+
     <label>Estado del equipo</label>
     <div class="estado-opciones">
       <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">Operativo</button>
@@ -256,12 +265,14 @@ function mostrarEquipo(equipo) {
   document.getElementById('paso-actualizar').classList.remove('oculto');
   document.getElementById('info-equipo').innerHTML = `
     <b>${equipo.descripcion}</b><br>
-    Marca/Modelo: ${equipo.marca || 'S/M'} / ${equipo.modelo || 'S/M'}<br>
-    Serie: ${equipo.serie || 'Sin serie'}<br>
     Sede: ${equipo.sede}<br>
     Servicio: ${equipo.dependencia}<br>
+    Vida útil: <b>${equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo'}</b><br>
     Estado actual: <b>${equipo.estadoActual}</b>
   `;
+  document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
+  document.getElementById('input-modelo').value = (equipo.modelo && equipo.modelo !== 'SIN MODELO') ? equipo.modelo : '';
+  document.getElementById('input-serie').value = (equipo.serie && equipo.serie !== 'SIN SERIE') ? equipo.serie : '';
 }
 
 function seleccionarEstado(estado) {
@@ -303,6 +314,9 @@ function guardarActualizacion() {
       codigoPatrimonial: equipoActual.codigoPatrimonial,
       estado: estadoSeleccionado,
       tecnico: document.getElementById('select-tecnico').value,
+      marca: document.getElementById('input-marca').value.trim(),
+      modelo: document.getElementById('input-modelo').value.trim(),
+      serie: document.getElementById('input-serie').value.trim(),
       fotoBase64: fotoBase64, // puede ser null, es opcional
     }),
   })
@@ -331,6 +345,9 @@ function reiniciar() {
   document.getElementById('foto-preview').style.display = 'none';
   document.getElementById('input-foto').value = '';
   document.getElementById('select-tecnico').value = '';
+  document.getElementById('input-marca').value = '';
+  document.getElementById('input-modelo').value = '';
+  document.getElementById('input-serie').value = '';
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
   document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
   document.getElementById('paso-actualizar').classList.add('oculto');
