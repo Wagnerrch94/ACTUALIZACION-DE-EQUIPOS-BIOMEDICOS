@@ -98,11 +98,11 @@
       <label>Sede</label>
       <select id="select-sede" onchange="alCambiarSede()"><option value="">Cargando sedes...</option></select>
 
-      <label>Dependencia / Servicio</label>
+      <label>Servicio</label>
       <select id="select-dependencia" onchange="alCambiarDependencia()" disabled><option value="">Selecciona una sede primero</option></select>
 
       <label>Equipo</label>
-      <select id="select-equipo" onchange="alSeleccionarEquipoManual()" disabled><option value="">Selecciona una dependencia primero</option></select>
+      <select id="select-equipo" onchange="alSeleccionarEquipoManual()" disabled><option value="">Selecciona un servicio primero</option></select>
     </div>
   </div>
 
@@ -133,8 +133,9 @@
 </div>
 
 <script>
-// ⚠️ PEGA AQUÍ LA URL /exec QUE TE DA APPS SCRIPT AL IMPLEMENTAR
- const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
+// ⚠️ URL de tu Apps Script (/exec) ya configurada
+const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
+
 let equipoActual = null;
 let estadoSeleccionado = null;
 let fotoBase64 = null;
@@ -202,7 +203,7 @@ function alCambiarSede() {
   const selectDep = document.getElementById('select-dependencia');
   const selectEq = document.getElementById('select-equipo');
   selectEq.disabled = true;
-  selectEq.innerHTML = '<option value="">Selecciona una dependencia primero</option>';
+  selectEq.innerHTML = '<option value="">Selecciona un servicio primero</option>';
   if (!sede) { selectDep.disabled = true; return; }
 
   selectDep.innerHTML = '<option value="">Cargando...</option>';
@@ -210,7 +211,7 @@ function alCambiarSede() {
     .then(r => r.json())
     .then(data => {
       selectDep.disabled = false;
-      selectDep.innerHTML = '<option value="">Selecciona una dependencia</option>' +
+      selectDep.innerHTML = '<option value="">Selecciona un servicio</option>' +
         data.dependencias.map(d => `<option value="${d}">${d}</option>`).join('');
     });
 }
@@ -247,7 +248,7 @@ function mostrarEquipo(equipo) {
     Marca/Modelo: ${equipo.marca || 'S/M'} / ${equipo.modelo || 'S/M'}<br>
     Serie: ${equipo.serie || 'Sin serie'}<br>
     Sede: ${equipo.sede}<br>
-    Dependencia: ${equipo.dependencia}<br>
+    Servicio: ${equipo.dependencia}<br>
     Estado actual: <b>${equipo.estadoActual}</b>
   `;
 }
