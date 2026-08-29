@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actualización de Equipos Biomédicos</title>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
+    --azul: #0f62d6;
+    --azul-oscuro: #0a3f8f;
+    --verde: #1e8e5a;
+    --rojo: #d93025;
+    --gris: #f4f5f7;
+    --texto: #1c1f26;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--gris);
+    color: var(--texto);
+  }
+  header {
+    background: var(--azul-oscuro);
+    color: #fff;
+    padding: 16px 20px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 18px;
+  }
+  .contenedor { max-width: 480px; margin: 0 auto; padding: 16px; }
+  .tarjeta {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab-btn {
+    flex: 1; padding: 12px; border: none; border-radius: 10px;
+    background: #fff; color: var(--azul); font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;
+  }
+  .tab-btn.activo { background: var(--azul); color: #fff; }
+  #lector-camara { width: 100%; border-radius: 10px; overflow: hidden; }
+  select, button, input {
+    width: 100%; padding: 12px; margin-top: 8px;
+    border-radius: 10px; border: 1px solid #d5d8de; font-size: 15px;
+  }
+  label { font-size: 13px; color: #666; margin-top: 12px; display: block; }
+  .btn-primario {
+    background: var(--azul); color: #fff; border: none; font-weight: 600;
+    margin-top: 16px; cursor: pointer;
+  }
+  .btn-primario:disabled { background: #a9c3ea; }
+  .estado-opciones { display: flex; gap: 8px; margin-top: 8px; }
+  .estado-btn {
+    flex: 1; padding: 14px 6px; border-radius: 10px; border: 2px solid #d5d8de;
+    background: #fff; font-weight: 600; cursor: pointer; font-size: 13px;
+  }
+  .estado-btn.op { border-color: var(--verde); color: var(--verde); }
+  .estado-btn.op.sel { background: var(--verde); color: #fff; }
+  .estado-btn.parcial { border-color: #d69618; color: #d69618; }
+  .estado-btn.parcial.sel { background: #d69618; color: #fff; }
+  .estado-btn.inop { border-color: var(--rojo); color: var(--rojo); }
+  .estado-btn.inop.sel { background: var(--rojo); color: #fff; }
+  .equipo-info { font-size: 14px; line-height: 1.6; }
+  .equipo-info b { color: var(--azul-oscuro); }
+  .oculto { display: none !important; }
+  .mensaje { padding: 12px; border-radius: 10px; font-size: 14px; margin-top: 12px; }
+  .mensaje.error { background: #fde8e6; color: var(--rojo); }
+  .mensaje.exito { background: #e6f4ea; color: var(--verde); }
+  #foto-preview { width: 100%; border-radius: 10px; margin-top: 8px; display: none; }
+  .spinner { text-align: center; padding: 20px; color: #888; }
+</style>
+</head>
+<body>
+
+<header>🔧 Actualización de Equipos Biomédicos</header>
+
+<div class="contenedor">
+
+  <!-- Paso 1: identificar el equipo -->
+  <div id="paso-buscar" class="tarjeta">
+    <div class="tabs">
+      <button class="tab-btn activo" id="tab-scan" onclick="cambiarTab('scan')">📷 Escanear código</button>
+      <button class="tab-btn" id="tab-manual" onclick="cambiarTab('manual')">📋 Buscar manualmente</button>
+    </div>
+
+    <div id="vista-scan">
+      <div id="lector-camara"></div>
+      <div id="msg-scan" class="mensaje oculto"></div>
+    </div>
+
+    <div id="vista-manual" class="oculto">
+      <label>Sede</label>
+      <select id="select-sede" onchange="alCambiarSede()"><option value="">Cargando sedes...</option></select>
+
+      <label>Dependencia / Servicio</label>
+      <select id="select-dependencia" onchange="alCambiarDependencia()" disabled><option value="">Selecciona una sede primero</option></select>
+
+      <label>Equipo</label>
+      <select id="select-equipo" onchange="alSeleccionarEquipoManual()" disabled><option value="">Selecciona una dependencia primero</option></select>
+    </div>
+  </div>
+
+  <!-- Paso 2: confirmar equipo y actualizar -->
+  <div id="paso-actualizar" class="tarjeta oculto">
+    <div class="equipo-info" id="info-equipo"></div>
+
+    <label>Estado del equipo</label>
+    <div class="estado-opciones">
+      <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">Operativo</button>
+      <button class="estado-btn parcial" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE')">Parcial</button>
+      <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">Inoperativo</button>
+    </div>
+
+    <label>Nombre del técnico</label>
+    <input type="text" id="input-tecnico" placeholder="Tus nombres y apellidos">
+
+    <label>Foto del reporte firmado</label>
+    <input type="file" id="input-foto" accept="image/*" capture="environment" onchange="previsualizarFoto(event)">
+    <img id="foto-preview">
+
+    <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Guardar actualización</button>
+    <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
+
+    <div id="msg-guardar" class="mensaje oculto"></div>
+  </div>
+
+</div>
+
+<script>
+// ⚠️ PEGA AQUÍ LA URL /exec QUE TE DA APPS SCRIPT AL IMPLEMENTAR
+const API_URL = 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT';
+
+let equipoActual = null;
+let estadoSeleccionado = null;
+let fotoBase64 = null;
+
+/* ---------- Tabs ---------- */
+function cambiarTab(tab) {
+  document.getElementById('tab-scan').classList.toggle('activo', tab === 'scan');
+  document.getElementById('tab-manual').classList.toggle('activo', tab === 'manual');
+  document.getElementById('vista-scan').classList.toggle('oculto', tab !== 'scan');
+  document.getElementById('vista-manual').classList.toggle('oculto', tab !== 'manual');
+
+  if (tab === 'manual' && document.getElementById('select-sede').options.length <= 1) {
+    cargarSedes();
+  }
+  if (tab === 'scan' && !lectorIniciado) {
+    iniciarEscaner();
+  }
+}
+
+/* ---------- Escáner de código de barras ---------- */
+let lectorIniciado = false;
+function iniciarEscaner() {
+  lectorIniciado = true;
+  const lector = new Html5Qrcode('lector-camara');
+  lector.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 250, height: 120 } },
+    (codigoDetectado) => {
+      lector.pause();
+      buscarPorCodigo(codigoDetectado, () => lector.resume());
+    },
+    () => {} // errores de lectura frame a frame, se ignoran
+  ).catch((err) => {
+    mostrarMensaje('msg-scan', 'No se pudo acceder a la cámara: ' + err, 'error');
+  });
+}
+
+function buscarPorCodigo(codigo, alTerminar) {
+  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigo)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        mostrarMensaje('msg-scan', data.error, 'error');
+        if (alTerminar) setTimeout(alTerminar, 1500);
+      } else {
+        mostrarEquipo(data);
+      }
+    })
+    .catch(() => mostrarMensaje('msg-scan', 'Error de conexión.', 'error'));
+}
+
+/* ---------- Búsqueda manual ---------- */
+function cargarSedes() {
+  fetch(`${API_URL}?accion=listarSedes`)
+    .then(r => r.json())
+    .then(data => {
+      const select = document.getElementById('select-sede');
+      select.innerHTML = '<option value="">Selecciona una sede</option>' +
+        data.sedes.map(s => `<option value="${s}">${s}</option>`).join('');
+    });
+}
+
+function alCambiarSede() {
+  const sede = document.getElementById('select-sede').value;
+  const selectDep = document.getElementById('select-dependencia');
+  const selectEq = document.getElementById('select-equipo');
+  selectEq.disabled = true;
+  selectEq.innerHTML = '<option value="">Selecciona una dependencia primero</option>';
+  if (!sede) { selectDep.disabled = true; return; }
+
+  selectDep.innerHTML = '<option value="">Cargando...</option>';
+  fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}`)
+    .then(r => r.json())
+    .then(data => {
+      selectDep.disabled = false;
+      selectDep.innerHTML = '<option value="">Selecciona una dependencia</option>' +
+        data.dependencias.map(d => `<option value="${d}">${d}</option>`).join('');
+    });
+}
+
+function alCambiarDependencia() {
+  const sede = document.getElementById('select-sede').value;
+  const dependencia = document.getElementById('select-dependencia').value;
+  const selectEq = document.getElementById('select-equipo');
+  if (!dependencia) { selectEq.disabled = true; return; }
+
+  selectEq.innerHTML = '<option value="">Cargando...</option>';
+  fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sede)}&dependencia=${encodeURIComponent(dependencia)}`)
+    .then(r => r.json())
+    .then(data => {
+      selectEq.disabled = false;
+      selectEq.innerHTML = '<option value="">Selecciona un equipo</option>' +
+        data.equipos.map(eq => `<option value='${JSON.stringify(eq).replace(/'/g, "&apos;")}'>${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'})</option>`).join('');
+    });
+}
+
+function alSeleccionarEquipoManual() {
+  const valor = document.getElementById('select-equipo').value;
+  if (!valor) return;
+  mostrarEquipo(JSON.parse(valor.replace(/&apos;/g, "'")));
+}
+
+/* ---------- Mostrar equipo y actualizar ---------- */
+function mostrarEquipo(equipo) {
+  equipoActual = equipo;
+  document.getElementById('paso-buscar').classList.add('oculto');
+  document.getElementById('paso-actualizar').classList.remove('oculto');
+  document.getElementById('info-equipo').innerHTML = `
+    <b>${equipo.descripcion}</b><br>
+    Marca/Modelo: ${equipo.marca || 'S/M'} / ${equipo.modelo || 'S/M'}<br>
+    Serie: ${equipo.serie || 'Sin serie'}<br>
+    Sede: ${equipo.sede}<br>
+    Dependencia: ${equipo.dependencia}<br>
+    Estado actual: <b>${equipo.estadoActual}</b>
+  `;
+}
+
+function seleccionarEstado(estado) {
+  estadoSeleccionado = estado;
+  document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
+  event.target.classList.add('sel');
+  validarFormulario();
+}
+
+function previsualizarFoto(event) {
+  const archivo = event.target.files[0];
+  if (!archivo) return;
+  const lector = new FileReader();
+  lector.onload = (e) => {
+    fotoBase64 = e.target.result;
+    const preview = document.getElementById('foto-preview');
+    preview.src = fotoBase64;
+    preview.style.display = 'block';
+    validarFormulario();
+  };
+  lector.readAsDataURL(archivo);
+}
+
+function validarFormulario() {
+  const tecnico = document.getElementById('input-tecnico').value.trim();
+  document.getElementById('btn-guardar').disabled = !(estadoSeleccionado && fotoBase64 && tecnico);
+}
+document.getElementById('input-tecnico').addEventListener('input', validarFormulario);
+
+function guardarActualizacion() {
+  const btn = document.getElementById('btn-guardar');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      fila: equipoActual.fila,
+      codigoBarras: equipoActual.codigoBarras,
+      codigoPatrimonial: equipoActual.codigoPatrimonial,
+      estado: estadoSeleccionado,
+      tecnico: document.getElementById('input-tecnico').value.trim(),
+      fotoBase64: fotoBase64,
+    }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.exito) {
+        mostrarMensaje('msg-guardar', '✅ Base de datos actualizada correctamente.', 'exito');
+        setTimeout(reiniciar, 1800);
+      } else {
+        mostrarMensaje('msg-guardar', data.error || 'Error al guardar.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Guardar actualización';
+      }
+    })
+    .catch(() => {
+      mostrarMensaje('msg-guardar', 'Error de conexión.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Guardar actualización';
+    });
+}
+
+function reiniciar() {
+  equipoActual = null;
+  estadoSeleccionado = null;
+  fotoBase64 = null;
+  document.getElementById('foto-preview').style.display = 'none';
+  document.getElementById('input-foto').value = '';
+  document.getElementById('input-tecnico').value = '';
+  document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('paso-actualizar').classList.add('oculto');
+  document.getElementById('paso-buscar').classList.remove('oculto');
+}
+
+function mostrarMensaje(id, texto, tipo) {
+  const el = document.getElementById(id);
+  el.textContent = texto;
+  el.className = 'mensaje ' + tipo;
+  setTimeout(() => el.classList.add('oculto'), 4000);
+}
+
+/* Iniciar con el escáner activo */
+window.addEventListener('load', () => iniciarEscaner());
+</script>
+
+</body>
+</html>
