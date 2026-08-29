@@ -74,6 +74,7 @@
   .mensaje.exito { background: #e6f4ea; color: var(--verde); }
   #foto-preview { width: 100%; border-radius: 10px; margin-top: 8px; display: none; }
   .spinner { text-align: center; padding: 20px; color: #888; }
+  .opcional { color: #999; font-weight: 400; }
 </style>
 </head>
 <body>
@@ -117,14 +118,25 @@
       <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">Inoperativo</button>
     </div>
 
-    <label>Nombre del técnico</label>
-    <input type="text" id="input-tecnico" placeholder="Tus nombres y apellidos">
+    <label>Técnico</label>
+    <select id="select-tecnico" onchange="validarFormulario()">
+      <option value="">— Elegir ejecutor —</option>
+      <option value="ANGEL FLORES">ANGEL FLORES</option>
+      <option value="JOSE ESPINOZA">JOSE ESPINOZA</option>
+      <option value="ALFONSO VARGAS">ALFONSO VARGAS</option>
+      <option value="JEAN MAGUIÑA">JEAN MAGUIÑA</option>
+      <option value="DANNY CORREA">DANNY CORREA</option>
+      <option value="JULIO VEGA">JULIO VEGA</option>
+      <option value="JOSE LUIS CAMPOS">JOSE LUIS CAMPOS</option>
+      <option value="KEVIN BLANCO">KEVIN BLANCO</option>
+      <option value="WAGNER ROJAS">WAGNER ROJAS</option>
+    </select>
 
-    <label>Foto del reporte firmado</label>
+    <label>Foto del reporte firmado <span class="opcional">(opcional)</span></label>
     <input type="file" id="input-foto" accept="image/*" capture="environment" onchange="previsualizarFoto(event)">
     <img id="foto-preview">
 
-    <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Guardar actualización</button>
+    <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
     <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
 
     <div id="msg-guardar" class="mensaje oculto"></div>
@@ -133,7 +145,6 @@
 </div>
 
 <script>
-// ⚠️ URL de tu Apps Script (/exec) ya configurada
 const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
 
 let equipoActual = null;
@@ -167,7 +178,7 @@ function iniciarEscaner() {
       lector.pause();
       buscarPorCodigo(codigoDetectado, () => lector.resume());
     },
-    () => {} // errores de lectura frame a frame, se ignoran
+    () => {}
   ).catch((err) => {
     mostrarMensaje('msg-scan', 'No se pudo acceder a la cámara: ' + err, 'error');
   });
@@ -262,23 +273,22 @@ function seleccionarEstado(estado) {
 
 function previsualizarFoto(event) {
   const archivo = event.target.files[0];
-  if (!archivo) return;
+  if (!archivo) { fotoBase64 = null; document.getElementById('foto-preview').style.display = 'none'; return; }
   const lector = new FileReader();
   lector.onload = (e) => {
     fotoBase64 = e.target.result;
     const preview = document.getElementById('foto-preview');
     preview.src = fotoBase64;
     preview.style.display = 'block';
-    validarFormulario();
   };
   lector.readAsDataURL(archivo);
 }
 
 function validarFormulario() {
-  const tecnico = document.getElementById('input-tecnico').value.trim();
-  document.getElementById('btn-guardar').disabled = !(estadoSeleccionado && fotoBase64 && tecnico);
+  const tecnico = document.getElementById('select-tecnico').value;
+  // Foto ya NO es obligatoria - solo se requiere estado + técnico
+  document.getElementById('btn-guardar').disabled = !(estadoSeleccionado && tecnico);
 }
-document.getElementById('input-tecnico').addEventListener('input', validarFormulario);
 
 function guardarActualizacion() {
   const btn = document.getElementById('btn-guardar');
@@ -292,8 +302,8 @@ function guardarActualizacion() {
       codigoBarras: equipoActual.codigoBarras,
       codigoPatrimonial: equipoActual.codigoPatrimonial,
       estado: estadoSeleccionado,
-      tecnico: document.getElementById('input-tecnico').value.trim(),
-      fotoBase64: fotoBase64,
+      tecnico: document.getElementById('select-tecnico').value,
+      fotoBase64: fotoBase64, // puede ser null, es opcional
     }),
   })
     .then(r => r.json())
@@ -304,13 +314,13 @@ function guardarActualizacion() {
       } else {
         mostrarMensaje('msg-guardar', data.error || 'Error al guardar.', 'error');
         btn.disabled = false;
-        btn.textContent = 'Guardar actualización';
+        btn.textContent = 'Actualizar equipo';
       }
     })
     .catch(() => {
       mostrarMensaje('msg-guardar', 'Error de conexión.', 'error');
       btn.disabled = false;
-      btn.textContent = 'Guardar actualización';
+      btn.textContent = 'Actualizar equipo';
     });
 }
 
@@ -320,8 +330,9 @@ function reiniciar() {
   fotoBase64 = null;
   document.getElementById('foto-preview').style.display = 'none';
   document.getElementById('input-foto').value = '';
-  document.getElementById('input-tecnico').value = '';
+  document.getElementById('select-tecnico').value = '';
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
   document.getElementById('paso-actualizar').classList.add('oculto');
   document.getElementById('paso-buscar').classList.remove('oculto');
 }
@@ -333,7 +344,6 @@ function mostrarMensaje(id, texto, tipo) {
   setTimeout(() => el.classList.add('oculto'), 4000);
 }
 
-/* Iniciar con el escáner activo */
 window.addEventListener('load', () => iniciarEscaner());
 </script>
 
