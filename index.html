@@ -47,6 +47,12 @@
     padding: 22px 20px;
     display: flex; align-items: center; gap: 12px;
   }
+  header .btn-recargar {
+    margin-left: auto; width: auto; padding: 8px; margin-top: 0;
+    background: rgba(255,255,255,0.12); border: none; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  header .btn-recargar:active { background: rgba(255,255,255,0.25); }
   header .marca-icono {
     width: 38px; height: 38px; border-radius: 10px;
     background: var(--primario); flex-shrink: 0;
@@ -190,6 +196,12 @@
     <div class="titulo">Equipos Biomédicos</div>
     <div class="subtitulo">Escanea, actualiza el estado y listo</div>
   </div>
+  <button type="button" class="btn-recargar" onclick="recargarApp()" title="Recargar la app (usa esto si algo se ve desactualizado)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 11A8 8 0 1 0 19.5 15" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <path d="M20 4v7h-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
 </header>
 
 <div class="contenedor">
@@ -365,6 +377,12 @@
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
+
+/** Fuerza una recarga real de la página, sin usar nada guardado en caché del WebView */
+function recargarApp() {
+  const url = window.location.pathname + '?v=' + Date.now();
+  window.location.href = url;
+}
 
 let equipoActual = null;
 let estadoSeleccionado = null;
