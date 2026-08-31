@@ -127,7 +127,7 @@
     border: 1.5px solid var(--verde); padding: 12px;
   }
 
-  .estado-opciones { display: flex; gap: 8px; margin-top: 8px; }
+  .estado-opciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
   .estado-btn {
     flex: 1; padding: 14px 6px; border-radius: 10px; border: 1.5px solid var(--borde);
     background: var(--superficie); color: var(--texto-suave); font-weight: 700; font-size: 12.5px; text-align: center;
@@ -135,6 +135,7 @@
   .estado-btn.op.sel { background: var(--verde-claro); border-color: var(--verde); color: var(--verde); }
   .estado-btn.parcial.sel { background: var(--ambar-claro); border-color: var(--ambar); color: var(--ambar); }
   .estado-btn.inop.sel { background: var(--rojo-claro); border-color: var(--rojo); color: var(--rojo); }
+  .estado-btn.baja.sel { background: #e9eaec; border-color: #495057; color: #495057; }
 
   .equipo-info {
     font-size: 13.5px; line-height: 2; background: var(--primario-claro);
@@ -213,6 +214,7 @@
         <input type="text" id="input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
         <div class="combo-opciones oculto" id="opciones-sede"></div>
       </div>
+      <button type="button" class="btn-secundario" onclick="irASedePrincipal()">🏢 Ver equipos de SEDE PRINCIPAL</button>
 
       <div id="bloque-filtro" class="oculto">
         <label>¿Cómo deseas buscar el equipo?</label>
@@ -257,6 +259,7 @@
       <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">✅ Operativo</button>
       <button class="estado-btn parcial" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE')">⚠️ Parcial</button>
       <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">⛔ Inoperativo</button>
+      <button class="estado-btn baja" onclick="seleccionarEstado('DE BAJA')">🗑️ Baja</button>
     </div>
 
     <div id="campo-observacion" class="oculto">
@@ -279,7 +282,8 @@
     </select>
 
     <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
-    <button class="btn-secundario" onclick="escanearOtro()">📷 Escanear otro código</button>
+    <button class="btn-secundario" id="btn-escanear-otro" onclick="escanearOtro()">📷 Escanear otro código</button>
+    <button class="btn-secundario oculto" id="btn-buscar-otro" onclick="buscarOtroEquipo()">🔍 Buscar otro equipo</button>
     <button class="btn-terciario" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
 
     <div id="msg-guardar" class="mensaje oculto"></div>
@@ -325,6 +329,7 @@
       <button class="estado-btn op" onclick="seleccionarEstadoRegistro('OPERATIVO')">✅ Operativo</button>
       <button class="estado-btn parcial" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE')">⚠️ Parcial</button>
       <button class="estado-btn inop" onclick="seleccionarEstadoRegistro('INOPERATIVO')">⛔ Inoperativo</button>
+      <button class="estado-btn baja" onclick="seleccionarEstadoRegistro('DE BAJA')">🗑️ Baja</button>
     </div>
 
     <div id="reg-campo-observacion" class="oculto">
@@ -443,6 +448,7 @@ function buscarPorCodigo(codigo, alTerminar) {
         if (alTerminar) setTimeout(alTerminar, 500);
       } else {
         document.getElementById('btn-ir-registrar').classList.add('oculto');
+        origenBusqueda = 'scan';
         mostrarEquipo(data);
         if (alTerminar) setTimeout(alTerminar, 300);
       }
@@ -463,6 +469,14 @@ function escanearOtro() {
   if (lectorInstancia) {
     try { lectorInstancia.resume(); } catch (e) {}
   }
+}
+
+/** Vuelve a la búsqueda manual conservando la sede ya elegida */
+function buscarOtroEquipo() {
+  reiniciar();
+  cambiarTab('manual');
+  document.getElementById('input-equipo').value = '';
+  document.getElementById('input-equipo').focus();
 }
 
 /* ---------- Combobox genérico (buscador con filtro) ---------- */
@@ -512,25 +526,44 @@ function cargarSedes() {
 }
 
 configurarCombo('input-sede', 'opciones-sede', () => sedesTodas, (s) => s, (sede) => {
+  seleccionarSede(sede);
+});
+
+function seleccionarSede(sede) {
   sedeSeleccionada = sede;
+  document.getElementById('input-sede').value = sede;
   document.getElementById('bloque-filtro').classList.remove('oculto');
   document.getElementById('input-equipo').value = '';
   document.getElementById('input-equipo').disabled = true;
   document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
 
   cargarEquiposDeSede();
-});
+}
+
+/** Atajo directo para revisar los equipos registrados bajo "SEDE PRINCIPAL" */
+function irASedePrincipal() {
+  seleccionarSede('SEDE PRINCIPAL');
+}
 
 /** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador) */
 function cargarEquiposDeSede() {
   if (!sedeSeleccionada) return;
+  const inputEquipo = document.getElementById('input-equipo');
   fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}`)
     .then(r => r.json())
     .then(data => {
+      if (data.error) {
+        inputEquipo.placeholder = 'Error: ' + data.error;
+        return;
+      }
       equiposTodos = data.equipos || [];
-      const inputEquipo = document.getElementById('input-equipo');
       inputEquipo.disabled = false;
-      inputEquipo.placeholder = textoPlaceholderFiltro(campoFiltroEquipo);
+      inputEquipo.placeholder = equiposTodos.length > 0
+        ? textoPlaceholderFiltro(campoFiltroEquipo)
+        : 'No se encontraron equipos en esta sede';
+    })
+    .catch(() => {
+      inputEquipo.placeholder = 'Error de conexión — intenta de nuevo';
     });
 }
 
@@ -554,15 +587,19 @@ function elegirFiltro(campo, boton) {
 
 configurarCombo('input-equipo', 'opciones-equipo', () => equiposTodos,
   (eq) => `${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'})`,
-  (equipo) => mostrarEquipo(equipo),
+  (equipo) => { origenBusqueda = 'manual'; mostrarEquipo(equipo); },
   (eq) => eq[campoFiltroEquipo] || ''
 );
+
+let origenBusqueda = 'scan';
 
 /* ---------- Mostrar equipo y actualizar ---------- */
 function mostrarEquipo(equipo) {
   equipoActual = equipo;
   document.getElementById('paso-buscar').classList.add('oculto');
   document.getElementById('paso-actualizar').classList.remove('oculto');
+  document.getElementById('btn-escanear-otro').classList.toggle('oculto', origenBusqueda !== 'scan');
+  document.getElementById('btn-buscar-otro').classList.toggle('oculto', origenBusqueda !== 'manual');
   const añosVigencia = parseInt((equipo.vigencia || '').toString().match(/(\d+)\s*A/i)?.[1] || '', 10);
   const vidaUtilExcedida = !isNaN(añosVigencia) && equipo.vidaUtil !== null && equipo.vidaUtil !== undefined && añosVigencia >= equipo.vidaUtil;
   const textoVidaUtil = equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo';
@@ -588,7 +625,7 @@ function seleccionarEstado(estado) {
   estadoSeleccionado = estado;
   document.querySelectorAll('#paso-actualizar .estado-btn').forEach(b => b.classList.remove('sel'));
   event.target.classList.add('sel');
-  const requiereObservacion = estado === 'OPERATIVO PARCIALMENTE' || estado === 'INOPERATIVO';
+  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
   document.getElementById('campo-observacion').classList.toggle('oculto', !requiereObservacion);
   if (!requiereObservacion) document.getElementById('input-observacion').value = '';
   validarFormulario();
@@ -596,7 +633,7 @@ function seleccionarEstado(estado) {
 
 function validarFormulario() {
   const tecnico = document.getElementById('select-tecnico').value;
-  const requiereObservacion = estadoSeleccionado === 'OPERATIVO PARCIALMENTE' || estadoSeleccionado === 'INOPERATIVO';
+  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoSeleccionado);
   const observacion = document.getElementById('input-observacion').value.trim();
   const valido = estadoSeleccionado && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-guardar').disabled = !valido;
@@ -693,7 +730,7 @@ function seleccionarEstadoRegistro(estado) {
   const botones = document.querySelectorAll('#paso-registrar .estado-btn');
   botones.forEach(b => b.classList.remove('sel'));
   event.target.classList.add('sel');
-  const requiereObservacion = estado === 'OPERATIVO PARCIALMENTE' || estado === 'INOPERATIVO';
+  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
   document.getElementById('reg-campo-observacion').classList.toggle('oculto', !requiereObservacion);
   if (!requiereObservacion) document.getElementById('reg-observacion').value = '';
   validarFormularioRegistro();
@@ -702,7 +739,7 @@ function seleccionarEstadoRegistro(estado) {
 function validarFormularioRegistro() {
   const descripcion = document.getElementById('reg-descripcion').value.trim();
   const tecnico = document.getElementById('reg-tecnico').value;
-  const requiereObservacion = estadoRegistroSeleccionado === 'OPERATIVO PARCIALMENTE' || estadoRegistroSeleccionado === 'INOPERATIVO';
+  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoRegistroSeleccionado);
   const observacion = document.getElementById('reg-observacion').value.trim();
   const valido = descripcion && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-registrar').disabled = !valido;
