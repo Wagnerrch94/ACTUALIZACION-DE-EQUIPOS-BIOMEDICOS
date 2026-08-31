@@ -218,9 +218,7 @@
         <input type="text" id="input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
         <div class="combo-opciones oculto" id="opciones-sede"></div>
       </div>
-      <button type="button" class="btn-secundario" onclick="irASedePrincipal()">🏢 Ver equipos de SEDE PRINCIPAL</button>
-      <button type="button" class="btn-terciario" onclick="refrescarDatos()">🔄 Actualizar lista de sedes y equipos</button>
-      <div id="msg-manual" class="mensaje oculto"></div>
+      <button type="button" class="btn-secundario" onclick="irAEquiposSinEstablecimiento()">📋 Equipos sin establecimiento</button>
 
       <div id="bloque-filtro" class="oculto">
         <label>¿Cómo deseas buscar el equipo?</label>
@@ -547,25 +545,26 @@ function seleccionarSede(sede) {
 }
 
 /** Atajo directo para revisar los equipos registrados bajo "SEDE PRINCIPAL" */
-function irASedePrincipal() {
-  seleccionarSede('SEDE PRINCIPAL');
-}
+/** Muestra los equipos que no tienen ningún establecimiento (Sede) asignado en la base */
+function irAEquiposSinEstablecimiento() {
+  sedeSeleccionada = '(SIN ESTABLECIMIENTO)';
+  document.getElementById('input-sede').value = '(Equipos sin establecimiento)';
+  document.getElementById('bloque-filtro').classList.remove('oculto');
+  document.getElementById('input-equipo').value = '';
+  document.getElementById('input-equipo').disabled = true;
+  document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
 
-/** Limpia la caché del servidor y vuelve a cargar sedes (y equipos, si ya había una sede elegida) */
-function refrescarDatos() {
-  const btnSede = document.getElementById('input-sede');
-  btnSede.placeholder = 'Actualizando...';
-  sedesTodas = [];
-  fetch(`${API_URL}?accion=limpiarCache`)
-    .then(() => fetch(`${API_URL}?accion=listarSedes`))
+  const inputEquipo = document.getElementById('input-equipo');
+  fetch(`${API_URL}?accion=listarEquiposSinSede`)
     .then(r => r.json())
     .then(data => {
-      sedesTodas = data.sedes || [];
-      btnSede.placeholder = 'Escribe para buscar una sede...';
-      if (sedeSeleccionada) cargarEquiposDeSede();
-      mostrarMensaje('msg-manual', '✅ Datos actualizados.', 'exito');
+      equiposTodos = data.equipos || [];
+      inputEquipo.disabled = false;
+      inputEquipo.placeholder = equiposTodos.length > 0
+        ? textoPlaceholderFiltro(campoFiltroEquipo)
+        : 'No hay equipos sin establecimiento';
     })
-    .catch(() => { btnSede.placeholder = 'Escribe para buscar una sede...'; });
+    .catch(() => { inputEquipo.placeholder = 'Error de conexión — intenta de nuevo'; });
 }
 
 /** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador) */
