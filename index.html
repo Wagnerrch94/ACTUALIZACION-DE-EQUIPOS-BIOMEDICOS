@@ -1,24 +1,19 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actualización de Equipos Biomédicos</title>
-
-    <!-- Meta etiquetas para evitar que el WebView guarde la página en caché -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-
-    <!-- Fuentes y Scripts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-
-    <style>
-      :root {
-        /* Tus variables CSS... */
+<!-- Evitar que el WebView guarde la página en caché -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Actualización de Equipos Biomédicos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root {
     --tinta: #0f2f3d;
     --primario: #0e6e6e;
     --primario-oscuro: #0a4f4f;
@@ -162,7 +157,7 @@
 
   .mensaje { padding: 12px 14px; border-radius: 10px; font-size: 13.5px; margin-top: 12px; font-weight: 500; }
   .mensaje.error { background: var(--rojo-claro); color: var(--rojo); }
-  .mensaje.exito { background: var(--verde-claro); color: var(--verde); }
+  .mensaje.exito { background: var(--verde-claro); color: var(--verde); font-weight: 700; font-size: 14.5px; border: 1.5px solid var(--verde); }
 
   .opcional { color: #9aa6a5; font-weight: 400; text-transform: none; letter-spacing: 0; }
 
@@ -224,6 +219,8 @@
         <div class="combo-opciones oculto" id="opciones-sede"></div>
       </div>
       <button type="button" class="btn-secundario" onclick="irASedePrincipal()">🏢 Ver equipos de SEDE PRINCIPAL</button>
+      <button type="button" class="btn-terciario" onclick="refrescarDatos()">🔄 Actualizar lista de sedes y equipos</button>
+      <div id="msg-manual" class="mensaje oculto"></div>
 
       <div id="bloque-filtro" class="oculto">
         <label>¿Cómo deseas buscar el equipo?</label>
@@ -554,6 +551,23 @@ function irASedePrincipal() {
   seleccionarSede('SEDE PRINCIPAL');
 }
 
+/** Limpia la caché del servidor y vuelve a cargar sedes (y equipos, si ya había una sede elegida) */
+function refrescarDatos() {
+  const btnSede = document.getElementById('input-sede');
+  btnSede.placeholder = 'Actualizando...';
+  sedesTodas = [];
+  fetch(`${API_URL}?accion=limpiarCache`)
+    .then(() => fetch(`${API_URL}?accion=listarSedes`))
+    .then(r => r.json())
+    .then(data => {
+      sedesTodas = data.sedes || [];
+      btnSede.placeholder = 'Escribe para buscar una sede...';
+      if (sedeSeleccionada) cargarEquiposDeSede();
+      mostrarMensaje('msg-manual', '✅ Datos actualizados.', 'exito');
+    })
+    .catch(() => { btnSede.placeholder = 'Escribe para buscar una sede...'; });
+}
+
 /** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador) */
 function cargarEquiposDeSede() {
   if (!sedeSeleccionada) return;
@@ -672,8 +686,8 @@ function guardarActualizacion() {
     .then(r => r.json())
     .then(data => {
       if (data.exito) {
-        mostrarMensaje('msg-guardar', '✅ Base de datos actualizada correctamente.', 'exito');
-        setTimeout(reiniciar, 1800);
+        mostrarMensaje('msg-guardar', '✅ Datos guardados exitosamente en la base de datos.', 'exito', true);
+        setTimeout(reiniciar, 2200);
       } else {
         mostrarMensaje('msg-guardar', data.error || 'Error al guardar.', 'error');
         btn.disabled = false;
@@ -782,8 +796,8 @@ function registrarEquipo() {
     .then(r => r.json())
     .then(data => {
       if (data.exito) {
-        mostrarMensaje('msg-registrar', '✅ Equipo registrado correctamente.', 'exito');
-        setTimeout(reiniciar, 1800);
+        mostrarMensaje('msg-registrar', '✅ Equipo registrado exitosamente en la base de datos.', 'exito', true);
+        setTimeout(reiniciar, 2200);
       } else {
         mostrarMensaje('msg-registrar', data.error || 'Error al registrar.', 'error');
         btn.disabled = false;
