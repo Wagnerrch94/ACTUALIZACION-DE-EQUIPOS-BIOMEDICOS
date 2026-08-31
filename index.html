@@ -107,6 +107,7 @@
     <div id="vista-scan">
       <div id="lector-camara"></div>
       <div id="msg-scan" class="mensaje oculto"></div>
+      <button id="btn-ir-registrar" class="oculto" style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
     </div>
 
     <div id="vista-manual" class="oculto">
@@ -170,6 +171,67 @@
     <div id="msg-guardar" class="mensaje oculto"></div>
   </div>
 
+  <!-- Paso 3: registrar equipo nuevo -->
+  <div id="paso-registrar" class="tarjeta oculto">
+    <h3 style="margin-top:0;">Registrar equipo nuevo</h3>
+
+    <label>Código escaneado</label>
+    <input type="text" id="reg-codigo" readonly>
+
+    <label>Este código es...</label>
+    <select id="reg-tipo-codigo">
+      <option value="barras">Código de barras</option>
+      <option value="patrimonial">Código patrimonial</option>
+    </select>
+
+    <label>Descripción del equipo</label>
+    <input type="text" id="reg-descripcion" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormularioRegistro()">
+
+    <label>Sede</label>
+    <div class="combo">
+      <input type="text" id="reg-input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
+      <div class="combo-opciones oculto" id="reg-opciones-sede"></div>
+    </div>
+
+    <label>Servicio</label>
+    <input type="text" id="reg-servicio" placeholder="Ej: FARMACIA">
+
+    <label>Marca</label>
+    <input type="text" id="reg-marca">
+
+    <label>Modelo</label>
+    <input type="text" id="reg-modelo">
+
+    <label>Serie</label>
+    <input type="text" id="reg-serie">
+
+    <label>Estado inicial</label>
+    <div class="estado-opciones">
+      <button class="estado-btn op" onclick="seleccionarEstadoRegistro('OPERATIVO')">Operativo</button>
+      <button class="estado-btn parcial" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE')">Parcial</button>
+      <button class="estado-btn inop" onclick="seleccionarEstadoRegistro('INOPERATIVO')">Inoperativo</button>
+    </div>
+
+    <label>Técnico</label>
+    <select id="reg-tecnico" onchange="validarFormularioRegistro()">
+      <option value="">— Elegir ejecutor —</option>
+      <option value="ANGEL FLORES">ANGEL FLORES</option>
+      <option value="JOSE ESPINOZA">JOSE ESPINOZA</option>
+      <option value="ALFONSO VARGAS">ALFONSO VARGAS</option>
+      <option value="JEAN MAGUIÑA">JEAN MAGUIÑA</option>
+      <option value="DANNY CORREA">DANNY CORREA</option>
+      <option value="JULIO VEGA">JULIO VEGA</option>
+      <option value="JOSE LUIS CAMPOS">JOSE LUIS CAMPOS</option>
+      <option value="KEVIN BLANCO">KEVIN BLANCO</option>
+      <option value="WAGNER ROJAS">WAGNER ROJAS</option>
+    </select>
+
+    <button class="btn-primario" id="btn-registrar" onclick="registrarEquipo()" disabled>Registrar equipo</button>
+    <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar</button>
+
+    <div id="msg-registrar" class="mensaje oculto"></div>
+  </div>
+
 </div>
 
 <script>
@@ -177,6 +239,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItl
 
 let equipoActual = null;
 let estadoSeleccionado = null;
+let codigoParaRegistrar = '';
+let estadoRegistroSeleccionado = null;
 
 let sedesTodas = [];
 let serviciosTodos = [];
@@ -224,8 +288,13 @@ function buscarPorCodigo(codigo, alTerminar) {
     .then(data => {
       if (data.error) {
         mostrarMensaje('msg-scan', data.error, 'error');
+        if (data.noEncontrado) {
+          codigoParaRegistrar = codigo;
+          document.getElementById('btn-ir-registrar').classList.remove('oculto');
+        }
         if (alTerminar) setTimeout(alTerminar, 1500);
       } else {
+        document.getElementById('btn-ir-registrar').classList.add('oculto');
         mostrarEquipo(data);
       }
     })
@@ -395,14 +464,97 @@ function guardarActualizacion() {
 function reiniciar() {
   equipoActual = null;
   estadoSeleccionado = null;
+  codigoParaRegistrar = '';
+  estadoRegistroSeleccionado = null;
   document.getElementById('select-tecnico').value = '';
   document.getElementById('input-marca').value = '';
   document.getElementById('input-modelo').value = '';
   document.getElementById('input-serie').value = '';
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
   document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
+  document.getElementById('btn-ir-registrar').classList.add('oculto');
+
+  document.getElementById('reg-descripcion').value = '';
+  document.getElementById('reg-input-sede').value = '';
+  document.getElementById('reg-servicio').value = '';
+  document.getElementById('reg-marca').value = '';
+  document.getElementById('reg-modelo').value = '';
+  document.getElementById('reg-serie').value = '';
+  document.getElementById('reg-tecnico').value = '';
+  document.getElementById('btn-registrar').textContent = 'Registrar equipo';
+  document.getElementById('btn-registrar').disabled = true;
+
   document.getElementById('paso-actualizar').classList.add('oculto');
+  document.getElementById('paso-registrar').classList.add('oculto');
   document.getElementById('paso-buscar').classList.remove('oculto');
+}
+
+/* ---------- Registrar equipo nuevo ---------- */
+configurarCombo('reg-input-sede', 'reg-opciones-sede', () => sedesTodas, (s) => s, (sede) => {
+  document.getElementById('reg-input-sede').value = sede;
+});
+
+function abrirRegistro() {
+  document.getElementById('paso-buscar').classList.add('oculto');
+  document.getElementById('paso-registrar').classList.remove('oculto');
+  document.getElementById('reg-codigo').value = codigoParaRegistrar;
+  if (sedesTodas.length === 0) cargarSedes();
+}
+
+function seleccionarEstadoRegistro(estado) {
+  estadoRegistroSeleccionado = estado;
+  const botones = document.querySelectorAll('#paso-registrar .estado-btn');
+  botones.forEach(b => b.classList.remove('sel'));
+  event.target.classList.add('sel');
+  validarFormularioRegistro();
+}
+
+function validarFormularioRegistro() {
+  const descripcion = document.getElementById('reg-descripcion').value.trim();
+  const tecnico = document.getElementById('reg-tecnico').value;
+  document.getElementById('btn-registrar').disabled = !(descripcion && tecnico);
+}
+
+function registrarEquipo() {
+  const btn = document.getElementById('btn-registrar');
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
+
+  const tipoCodigo = document.getElementById('reg-tipo-codigo').value;
+  const codigo = document.getElementById('reg-codigo').value.trim();
+
+  fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      accion: 'registrar',
+      codigoBarras: tipoCodigo === 'barras' ? codigo : '',
+      codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
+      descripcion: document.getElementById('reg-descripcion').value.trim(),
+      sede: document.getElementById('reg-input-sede').value.trim(),
+      servicio: document.getElementById('reg-servicio').value.trim(),
+      marca: document.getElementById('reg-marca').value.trim(),
+      modelo: document.getElementById('reg-modelo').value.trim(),
+      serie: document.getElementById('reg-serie').value.trim(),
+      estado: estadoRegistroSeleccionado || 'OPERATIVO',
+      tecnico: document.getElementById('reg-tecnico').value,
+    }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.exito) {
+        mostrarMensaje('msg-registrar', '✅ Equipo registrado correctamente.', 'exito');
+        setTimeout(reiniciar, 1800);
+      } else {
+        mostrarMensaje('msg-registrar', data.error || 'Error al registrar.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Registrar equipo';
+      }
+    })
+    .catch(() => {
+      mostrarMensaje('msg-registrar', 'Error de conexión.', 'error');
+      btn.disabled = false;
+      btn.textContent = 'Registrar equipo';
+    });
 }
 
 function mostrarMensaje(id, texto, tipo) {
