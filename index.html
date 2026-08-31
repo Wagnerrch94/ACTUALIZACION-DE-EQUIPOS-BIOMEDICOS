@@ -1,626 +1,412 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Actualización de Equipos Biomédicos</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<style>
-  :root {
-    --azul: #0f62d6;
-    --azul-oscuro: #0a3f8f;
-    --verde: #1e8e5a;
-    --rojo: #d93025;
-    --gris: #f4f5f7;
-    --texto: #1c1f26;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--gris);
-    color: var(--texto);
-  }
-  header {
-    background: var(--azul-oscuro);
-    color: #fff;
-    padding: 16px 20px;
-    text-align: center;
-    font-weight: 600;
-    font-size: 18px;
-  }
-  .contenedor { max-width: 480px; margin: 0 auto; padding: 16px; }
-  .tarjeta {
-    background: #fff;
-    border-radius: 14px;
-    padding: 18px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  }
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
-  .tab-btn {
-    flex: 1; padding: 12px; border: none; border-radius: 10px;
-    background: #fff; color: var(--azul); font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;
-  }
-  .tab-btn.activo { background: var(--azul); color: #fff; }
-  #lector-camara { width: 100%; border-radius: 10px; overflow: hidden; }
-  select, button, input {
-    width: 100%; padding: 12px; margin-top: 8px;
-    border-radius: 10px; border: 1px solid #d5d8de; font-size: 15px;
-  }
-  input:disabled { background: #f0f1f3; color: #aaa; }
-  label { font-size: 13px; color: #666; margin-top: 12px; display: block; }
-  .btn-primario {
-    background: var(--azul); color: #fff; border: none; font-weight: 600;
-    margin-top: 16px; cursor: pointer;
-  }
-  .btn-primario:disabled { background: #a9c3ea; }
-  .estado-opciones { display: flex; gap: 8px; margin-top: 8px; }
-  .estado-btn {
-    flex: 1; padding: 14px 6px; border-radius: 10px; border: 2px solid #d5d8de;
-    background: #fff; font-weight: 600; cursor: pointer; font-size: 13px;
-  }
-  .estado-btn.op { border-color: var(--verde); color: var(--verde); }
-  .estado-btn.op.sel { background: var(--verde); color: #fff; }
-  .estado-btn.parcial { border-color: #d69618; color: #d69618; }
-  .estado-btn.parcial.sel { background: #d69618; color: #fff; }
-  .estado-btn.inop { border-color: var(--rojo); color: var(--rojo); }
-  .estado-btn.inop.sel { background: var(--rojo); color: #fff; }
-  .equipo-info { font-size: 14px; line-height: 1.6; }
-  .equipo-info b { color: var(--azul-oscuro); }
-  .oculto { display: none !important; }
-  .mensaje { padding: 12px; border-radius: 10px; font-size: 14px; margin-top: 12px; }
-  .mensaje.error { background: #fde8e6; color: var(--rojo); }
-  .mensaje.exito { background: #e6f4ea; color: var(--verde); }
-  .opcional { color: #999; font-weight: 400; }
+/**
+ * ============================================================
+ * ACTUALIZACIÓN DE EQUIPOS BIOMÉDICOS - Backend (Apps Script)
+ * ============================================================
+ */
 
-  /* Buscador tipo combobox */
-  .combo { position: relative; }
-  .combo-opciones {
-    position: absolute; z-index: 20; top: 100%; left: 0; right: 0;
-    background: #fff; border: 1px solid #d5d8de; border-top: none;
-    border-radius: 0 0 10px 10px; max-height: 220px; overflow-y: auto;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-  }
-  .combo-opcion {
-    padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f1f3;
-  }
-  .combo-opcion:last-child { border-bottom: none; }
-  .combo-opcion:hover, .combo-opcion.activa { background: #eaf1fd; }
-  .combo-vacio { padding: 10px 12px; font-size: 14px; color: #999; }
-</style>
-</head>
-<body>
+const CONFIG = {
+  SHEET_NAME: 'BBDD',
+  SHEET_NAME_VIDA_UTIL: 'VIDA UTIL',
+  CARPETA_DRIVE_FOTOS: 'Reportes_Equipos_Biomedicos',
+  FILA_ENCABEZADO: 1,
+  CACHE_TTL_SEGUNDOS: 21600,
+};
 
-<header>🔧 Actualización de Equipos Biomédicos</header>
+// Columnas de la pestaña "VIDA UTIL" (letra -> índice base 1)
+const COL_VIDA_UTIL = {
+  DENOMINACION: 3,  // C
+  VIDA_UTIL: 9,      // I
+};
 
-<div class="contenedor">
+const COL = {
+  CODIGO_PATRIMONIAL: 1,
+  CODIGO_BARRAS: 2,
+  DESCRIPCION: 3,
+  SEDE: 4,
+  VIGENCIA: 5,
+  MARCA: 6,
+  MODELO: 7,
+  SERIE: 8,
+  SERVICIO: 9,
+  ESTADO: 10,
+};
 
-  <!-- Paso 1: identificar el equipo -->
-  <div id="paso-buscar" class="tarjeta">
-    <div class="tabs">
-      <button class="tab-btn activo" id="tab-scan" onclick="cambiarTab('scan')">📷 Escanear código</button>
-      <button class="tab-btn" id="tab-manual" onclick="cambiarTab('manual')">📋 Buscar manualmente</button>
-    </div>
+const COL_NUEVAS = {
+  FECHA_REVISION: 'FECHA_ULTIMA_REVISION',
+  TECNICO: 'TECNICO_RESPONSABLE',
+  FOTO_URL: 'URL_FOTO_REPORTE',
+};
 
-    <div id="vista-scan">
-      <div id="lector-camara"></div>
-      <div id="codigo-en-vivo" class="mensaje oculto"></div>
-      <button id="btn-capturar" class="btn-primario" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
-      <div id="msg-scan" class="mensaje oculto"></div>
-      <button id="btn-ir-registrar" class="oculto" style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
-    </div>
-
-    <div id="vista-manual" class="oculto">
-      <label>Sede</label>
-      <div class="combo">
-        <input type="text" id="input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
-        <div class="combo-opciones oculto" id="opciones-sede"></div>
-      </div>
-
-      <label>Servicio <span class="opcional">(opcional, para filtrar más)</span></label>
-      <div class="combo">
-        <input type="text" id="input-servicio" placeholder="Selecciona una sede primero" autocomplete="off" disabled>
-        <div class="combo-opciones oculto" id="opciones-servicio"></div>
-      </div>
-
-      <label>Equipo</label>
-      <div class="combo">
-        <input type="text" id="input-equipo" placeholder="Selecciona una sede primero" autocomplete="off" disabled>
-        <div class="combo-opciones oculto" id="opciones-equipo"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Paso 2: confirmar equipo y actualizar -->
-  <div id="paso-actualizar" class="tarjeta oculto">
-    <div class="equipo-info" id="info-equipo"></div>
-
-    <label>Sede</label>
-    <input type="text" id="input-sede-editar">
-
-    <label>Servicio</label>
-    <input type="text" id="input-servicio-editar">
-
-    <label>Marca</label>
-    <input type="text" id="input-marca">
-
-    <label>Modelo</label>
-    <input type="text" id="input-modelo">
-
-    <label>Serie</label>
-    <input type="text" id="input-serie">
-
-    <label>Estado del equipo</label>
-    <div class="estado-opciones">
-      <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">Operativo</button>
-      <button class="estado-btn parcial" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE')">Parcial</button>
-      <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">Inoperativo</button>
-    </div>
-
-    <label>Técnico</label>
-    <select id="select-tecnico" onchange="validarFormulario()">
-      <option value="">— Elegir ejecutor —</option>
-      <option value="ANGEL FLORES">ANGEL FLORES</option>
-      <option value="JOSE ESPINOZA">JOSE ESPINOZA</option>
-      <option value="ALFONSO VARGAS">ALFONSO VARGAS</option>
-      <option value="JEAN MAGUIÑA">JEAN MAGUIÑA</option>
-      <option value="DANNY CORREA">DANNY CORREA</option>
-      <option value="JULIO VEGA">JULIO VEGA</option>
-      <option value="JOSE LUIS CAMPOS">JOSE LUIS CAMPOS</option>
-      <option value="KEVIN BLANCO">KEVIN BLANCO</option>
-      <option value="WAGNER ROJAS">WAGNER ROJAS</option>
-    </select>
-
-    <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
-    <button style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="escanearOtro()">📷 Escanear otro código</button>
-    <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
-
-    <div id="msg-guardar" class="mensaje oculto"></div>
-  </div>
-
-  <!-- Paso 3: registrar equipo nuevo -->
-  <div id="paso-registrar" class="tarjeta oculto">
-    <h3 style="margin-top:0;">Registrar equipo nuevo</h3>
-
-    <label>Código escaneado</label>
-    <input type="text" id="reg-codigo" readonly>
-
-    <label>Este código es...</label>
-    <select id="reg-tipo-codigo">
-      <option value="barras">Código de barras</option>
-      <option value="patrimonial">Código patrimonial</option>
-    </select>
-
-    <label>Descripción del equipo</label>
-    <input type="text" id="reg-descripcion" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormularioRegistro()">
-
-    <label>Sede</label>
-    <div class="combo">
-      <input type="text" id="reg-input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
-      <div class="combo-opciones oculto" id="reg-opciones-sede"></div>
-    </div>
-
-    <label>Servicio</label>
-    <input type="text" id="reg-servicio" placeholder="Ej: FARMACIA">
-
-    <label>Marca</label>
-    <input type="text" id="reg-marca">
-
-    <label>Modelo</label>
-    <input type="text" id="reg-modelo">
-
-    <label>Serie</label>
-    <input type="text" id="reg-serie">
-
-    <label>Estado inicial</label>
-    <div class="estado-opciones">
-      <button class="estado-btn op" onclick="seleccionarEstadoRegistro('OPERATIVO')">Operativo</button>
-      <button class="estado-btn parcial" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE')">Parcial</button>
-      <button class="estado-btn inop" onclick="seleccionarEstadoRegistro('INOPERATIVO')">Inoperativo</button>
-    </div>
-
-    <label>Técnico</label>
-    <select id="reg-tecnico" onchange="validarFormularioRegistro()">
-      <option value="">— Elegir ejecutor —</option>
-      <option value="ANGEL FLORES">ANGEL FLORES</option>
-      <option value="JOSE ESPINOZA">JOSE ESPINOZA</option>
-      <option value="ALFONSO VARGAS">ALFONSO VARGAS</option>
-      <option value="JEAN MAGUIÑA">JEAN MAGUIÑA</option>
-      <option value="DANNY CORREA">DANNY CORREA</option>
-      <option value="JULIO VEGA">JULIO VEGA</option>
-      <option value="JOSE LUIS CAMPOS">JOSE LUIS CAMPOS</option>
-      <option value="KEVIN BLANCO">KEVIN BLANCO</option>
-      <option value="WAGNER ROJAS">WAGNER ROJAS</option>
-    </select>
-
-    <button class="btn-primario" id="btn-registrar" onclick="registrarEquipo()" disabled>Registrar equipo</button>
-    <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar</button>
-
-    <div id="msg-registrar" class="mensaje oculto"></div>
-  </div>
-
-</div>
-
-<script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
-
-let equipoActual = null;
-let estadoSeleccionado = null;
-let codigoParaRegistrar = '';
-let estadoRegistroSeleccionado = null;
-
-let sedesTodas = [];
-let serviciosTodos = [];
-let equiposTodos = []; // { descripcion, marca, serie, ...datosCompletos }
-
-let sedeSeleccionada = '';
-let servicioSeleccionado = '';
-
-/* ---------- Tabs ---------- */
-function cambiarTab(tab) {
-  document.getElementById('tab-scan').classList.toggle('activo', tab === 'scan');
-  document.getElementById('tab-manual').classList.toggle('activo', tab === 'manual');
-  document.getElementById('vista-scan').classList.toggle('oculto', tab !== 'scan');
-  document.getElementById('vista-manual').classList.toggle('oculto', tab !== 'manual');
-
-  if (tab === 'manual' && sedesTodas.length === 0) {
-    cargarSedes();
-  }
-  if (tab === 'scan' && !lectorIniciado) {
-    iniciarEscaner();
-  }
+function getHoja_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) throw new Error('No se encontró la pestaña "' + CONFIG.SHEET_NAME + '"');
+  return sheet;
 }
 
-/* ---------- Escáner de código de barras ---------- */
-let lectorIniciado = false;
-let lectorInstancia = null;
-let ultimoCodigoDetectado = null;
+function inicializarColumnas() {
+  const sheet = getHoja_();
+  const lastCol = sheet.getLastColumn();
+  const encabezados = sheet.getRange(CONFIG.FILA_ENCABEZADO, 1, 1, lastCol).getValues()[0];
 
-function iniciarEscaner() {
-  lectorIniciado = true;
-  lectorInstancia = new Html5Qrcode('lector-camara');
-  lectorInstancia.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 250, height: 120 } },
-    (codigoDetectado) => {
-      ultimoCodigoDetectado = codigoDetectado;
-      const aviso = document.getElementById('codigo-en-vivo');
-      aviso.textContent = `Código listo: "${codigoDetectado}" — presiona "Capturar y buscar"`;
-      aviso.className = 'mensaje exito';
-      document.getElementById('btn-capturar').disabled = false;
-    },
-    () => {}
-  ).catch((err) => {
-    mostrarMensaje('msg-scan', 'No se pudo acceder a la cámara: ' + err, 'error');
-  });
-}
-
-function capturarCodigo() {
-  if (!ultimoCodigoDetectado) return;
-  const codigo = ultimoCodigoDetectado;
-  document.getElementById('btn-capturar').disabled = true;
-  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito');
-  if (lectorInstancia) { try { lectorInstancia.pause(true); } catch (e) {} }
-  buscarPorCodigo(codigo, () => {
-    if (lectorInstancia) { try { lectorInstancia.resume(); } catch (e) {} }
-    document.getElementById('btn-capturar').disabled = false;
-  });
-}
-
-function buscarPorCodigo(codigo, alTerminar) {
-  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigo)}`)
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById('codigo-en-vivo').classList.add('oculto');
-      ultimoCodigoDetectado = null;
-      if (data.error) {
-        mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error');
-        if (data.noEncontrado) {
-          codigoParaRegistrar = codigo;
-          document.getElementById('btn-ir-registrar').classList.remove('oculto');
-        }
-        if (alTerminar) setTimeout(alTerminar, 500);
-      } else {
-        document.getElementById('btn-ir-registrar').classList.add('oculto');
-        mostrarEquipo(data);
-        if (alTerminar) setTimeout(alTerminar, 300);
-      }
-    })
-    .catch(() => {
-      mostrarMensaje('msg-scan', 'Error de conexión.', 'error');
-      if (alTerminar) setTimeout(alTerminar, 300);
-    });
-}
-
-/** Vuelve directo a la pestaña de escaneo y reanuda la cámara si estaba pausada */
-function escanearOtro() {
-  reiniciar();
-  cambiarTab('scan');
-  ultimoCodigoDetectado = null;
-  document.getElementById('btn-capturar').disabled = true;
-  document.getElementById('codigo-en-vivo').classList.add('oculto');
-  if (lectorInstancia) {
-    try { lectorInstancia.resume(); } catch (e) {}
-  }
-}
-
-/* ---------- Combobox genérico (buscador con filtro) ---------- */
-function configurarCombo(inputId, opcionesId, obtenerLista, obtenerEtiqueta, alSeleccionar) {
-  const input = document.getElementById(inputId);
-  const contenedor = document.getElementById(opcionesId);
-
-  function render(filtro) {
-    const lista = obtenerLista();
-    const texto = (filtro || '').toUpperCase();
-    const filtrada = texto ? lista.filter(item => obtenerEtiqueta(item).toUpperCase().includes(texto)) : lista;
-
-    if (filtrada.length === 0) {
-      contenedor.innerHTML = '<div class="combo-vacio">Sin resultados</div>';
-    } else {
-      contenedor.innerHTML = filtrada.slice(0, 200).map((item, i) =>
-        `<div class="combo-opcion" data-i="${i}">${obtenerEtiqueta(item)}</div>`
-      ).join('');
-      Array.from(contenedor.children).forEach((el, i) => {
-        el.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          input.value = obtenerEtiqueta(filtrada[i]);
-          contenedor.classList.add('oculto');
-          alSeleccionar(filtrada[i]);
-        });
-      });
+  const nombresNuevos = [COL_NUEVAS.FECHA_REVISION, COL_NUEVAS.TECNICO, COL_NUEVAS.FOTO_URL];
+  let col = lastCol;
+  nombresNuevos.forEach(function (nombre) {
+    if (encabezados.indexOf(nombre) === -1) {
+      col++;
+      sheet.getRange(CONFIG.FILA_ENCABEZADO, col).setValue(nombre);
     }
-    contenedor.classList.remove('oculto');
+  });
+  SpreadsheetApp.getUi().alert('Columnas creadas/verificadas correctamente.');
+}
+
+function indiceColumnaNueva_(sheet, nombreColumna) {
+  const lastCol = sheet.getLastColumn();
+  const encabezados = sheet.getRange(CONFIG.FILA_ENCABEZADO, 1, 1, lastCol).getValues()[0];
+  const idx = encabezados.indexOf(nombreColumna);
+  if (idx === -1) throw new Error('Falta la columna "' + nombreColumna + '". Ejecuta inicializarColumnas() primero.');
+  return idx + 1;
+}
+
+/* ================= CACHÉ ================= */
+
+const CACHE_PREFIJO = 'indice_v2';
+
+// Posiciones dentro de cada arreglo del índice (más liviano que usar objetos)
+const IDX = {
+  FILA: 0, COD_PAT: 1, COD_BAR: 2, DESC: 3, SEDE: 4,
+  VIGENCIA: 5, MARCA: 6, MODELO: 7, SERIE: 8, SERVICIO: 9, ESTADO: 10,
+};
+
+function obtenerIndice_() {
+  const cache = CacheService.getScriptCache();
+  const numChunks = cache.get(CACHE_PREFIJO + '_n');
+
+  if (numChunks) {
+    const claves = [];
+    for (let i = 0; i < Number(numChunks); i++) claves.push(CACHE_PREFIJO + '_' + i);
+    const partes = cache.getAll(claves);
+    let completo = true;
+    let json = '';
+    for (let i = 0; i < claves.length; i++) {
+      if (!partes[claves[i]]) { completo = false; break; }
+      json += partes[claves[i]];
+    }
+    if (completo) {
+      try { return JSON.parse(json); } catch (e) {}
+    }
   }
 
-  input.addEventListener('input', () => render(input.value));
-  input.addEventListener('focus', () => { if (!input.disabled) render(input.value); });
-  input.addEventListener('blur', () => setTimeout(() => contenedor.classList.add('oculto'), 150));
-}
+  const sheet = getHoja_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
 
-/* ---------- Carga de datos ---------- */
-function cargarSedes() {
-  fetch(`${API_URL}?accion=listarSedes`)
-    .then(r => r.json())
-    .then(data => {
-      sedesTodas = data.sedes || [];
-    });
-}
-
-configurarCombo('input-sede', 'opciones-sede', () => sedesTodas, (s) => s, (sede) => {
-  sedeSeleccionada = sede;
-  servicioSeleccionado = '';
-  document.getElementById('input-servicio').value = '';
-  document.getElementById('input-servicio').disabled = false;
-  document.getElementById('input-servicio').placeholder = 'Escribe para buscar un servicio...';
-  document.getElementById('input-equipo').value = '';
-  document.getElementById('input-equipo').disabled = true;
-  document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
-
-  fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}`)
-    .then(r => r.json())
-    .then(data => { serviciosTodos = data.dependencias || []; });
-
-  cargarEquipos();
-});
-
-configurarCombo('input-servicio', 'opciones-servicio', () => serviciosTodos, (s) => s, (servicio) => {
-  servicioSeleccionado = servicio;
-  document.getElementById('input-equipo').value = '';
-  cargarEquipos();
-});
-
-// Si el usuario borra el texto del servicio a mano, vuelve a traer TODOS los equipos de la sede
-document.getElementById('input-servicio').addEventListener('input', function () {
-  if (this.value.trim() === '' && servicioSeleccionado !== '') {
-    servicioSeleccionado = '';
-    cargarEquipos();
+  const datos = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  const indice = [];
+  for (let i = 0; i < datos.length; i++) {
+    const fila = datos[i];
+    if (fila[COL.DESCRIPCION - 1]) {
+      indice.push([
+        i + 2,
+        fila[COL.CODIGO_PATRIMONIAL - 1],
+        fila[COL.CODIGO_BARRAS - 1],
+        fila[COL.DESCRIPCION - 1],
+        fila[COL.SEDE - 1],
+        fila[COL.VIGENCIA - 1],
+        fila[COL.MARCA - 1],
+        fila[COL.MODELO - 1],
+        fila[COL.SERIE - 1],
+        fila[COL.SERVICIO - 1],
+        fila[COL.ESTADO - 1],
+      ]);
+    }
   }
-});
 
-function cargarEquipos() {
-  if (!sedeSeleccionada) return;
-  const url = `${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}` +
-    (servicioSeleccionado ? `&dependencia=${encodeURIComponent(servicioSeleccionado)}` : '');
-  fetch(url)
-    .then(r => r.json())
-    .then(data => {
-      equiposTodos = data.equipos || [];
-      const inputEquipo = document.getElementById('input-equipo');
-      inputEquipo.disabled = false;
-      inputEquipo.placeholder = 'Escribe para buscar un equipo...';
-    });
+  guardarIndiceEnCache_(indice);
+  return indice;
 }
 
-configurarCombo('input-equipo', 'opciones-equipo', () => equiposTodos,
-  (eq) => `${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'})`,
-  (equipo) => mostrarEquipo(equipo)
-);
+function guardarIndiceEnCache_(indice) {
+  const cache = CacheService.getScriptCache();
+  const json = JSON.stringify(indice);
+  const TAM_CHUNK = 90000;
+  const chunks = [];
+  for (let i = 0; i < json.length; i += TAM_CHUNK) {
+    chunks.push(json.substring(i, i + TAM_CHUNK));
+  }
+  if (chunks.length > 300) return; // seguro de tamaño, no debería alcanzarse
 
-/* ---------- Mostrar equipo y actualizar ---------- */
-function mostrarEquipo(equipo) {
-  equipoActual = equipo;
-  document.getElementById('paso-buscar').classList.add('oculto');
-  document.getElementById('paso-actualizar').classList.remove('oculto');
-  const añosVigencia = parseInt((equipo.vigencia || '').toString().match(/(\d+)\s*A/i)?.[1] || '', 10);
-  const vidaUtilExcedida = !isNaN(añosVigencia) && equipo.vidaUtil !== null && equipo.vidaUtil !== undefined && añosVigencia >= equipo.vidaUtil;
-  const textoVidaUtil = equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo';
-
-  document.getElementById('info-equipo').innerHTML = `
-    <b>${equipo.descripcion}</b><br>
-    Código Patrimonial: ${equipo.codigoPatrimonial || 'S/D'}<br>
-    Código de Barras: ${equipo.codigoBarras || 'S/D'}<br>
-    Sede: ${equipo.sede}<br>
-    Servicio: ${equipo.dependencia}<br>
-    Vigencia del equipo: ${equipo.vigencia || 'S/D'}<br>
-    Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — ¡EXCEDIDA!' : ''}</b><br>
-    Estado actual: <b>${equipo.estadoActual}</b>
-  `;
-  document.getElementById('input-sede-editar').value = equipo.sede || '';
-  document.getElementById('input-servicio-editar').value = equipo.dependencia || '';
-  document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
-  document.getElementById('input-modelo').value = (equipo.modelo && equipo.modelo !== 'SIN MODELO') ? equipo.modelo : '';
-  document.getElementById('input-serie').value = (equipo.serie && equipo.serie !== 'SIN SERIE') ? equipo.serie : '';
+  const paquete = {};
+  chunks.forEach(function (c, i) {
+    paquete[CACHE_PREFIJO + '_' + i] = c;
+  });
+  paquete[CACHE_PREFIJO + '_n'] = String(chunks.length);
+  cache.putAll(paquete, CONFIG.CACHE_TTL_SEGUNDOS);
 }
 
-function seleccionarEstado(estado) {
-  estadoSeleccionado = estado;
-  document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
-  event.target.classList.add('sel');
-  validarFormulario();
+function invalidarCache_() {
+  CacheService.getScriptCache().remove(CACHE_PREFIJO + '_n');
 }
 
-function validarFormulario() {
-  const tecnico = document.getElementById('select-tecnico').value;
-  document.getElementById('btn-guardar').disabled = !(estadoSeleccionado && tecnico);
+/* ================= VIDA ÚTIL (pestaña "VIDA UTIL") ================= */
+
+const CACHE_VIDA_UTIL = 'vida_util_v1';
+
+/** Devuelve un objeto { DENOMINACION_EN_MAYUSCULAS: vidaUtilEnAños } */
+function obtenerMapaVidaUtil_() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get(CACHE_VIDA_UTIL);
+  if (guardado) {
+    try { return JSON.parse(guardado); } catch (e) {}
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getSheetByName(CONFIG.SHEET_NAME_VIDA_UTIL);
+  if (!hoja) return {};
+
+  const lastRow = hoja.getLastRow();
+  if (lastRow < 2) return {};
+
+  const datos = hoja.getRange(2, 1, lastRow - 1, COL_VIDA_UTIL.VIDA_UTIL).getValues();
+  const mapa = {};
+  datos.forEach(function (fila) {
+    const denominacion = (fila[COL_VIDA_UTIL.DENOMINACION - 1] || '').toString().trim().toUpperCase();
+    const vidaUtil = fila[COL_VIDA_UTIL.VIDA_UTIL - 1];
+    if (denominacion && vidaUtil !== '' && vidaUtil !== null) {
+      mapa[denominacion] = vidaUtil;
+    }
+  });
+
+  try {
+    cache.put(CACHE_VIDA_UTIL, JSON.stringify(mapa), CONFIG.CACHE_TTL_SEGUNDOS);
+  } catch (e) {
+    // si el catálogo es muy grande para cachear, simplemente no se cachea
+  }
+  return mapa;
 }
 
-function guardarActualizacion() {
-  const btn = document.getElementById('btn-guardar');
-  btn.disabled = true;
-  btn.textContent = 'Guardando...';
+/** Busca la vida útil de un equipo comparando su descripción contra el catálogo */
+function buscarVidaUtil_(descripcionEquipo) {
+  if (!descripcionEquipo) return null;
+  const mapa = obtenerMapaVidaUtil_();
+  const desc = descripcionEquipo.toString().trim().toUpperCase();
 
-  fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({
-      fila: equipoActual.fila,
-      codigoBarras: equipoActual.codigoBarras,
-      codigoPatrimonial: equipoActual.codigoPatrimonial,
-      estado: estadoSeleccionado,
-      tecnico: document.getElementById('select-tecnico').value,
-      sede: document.getElementById('input-sede-editar').value.trim(),
-      servicio: document.getElementById('input-servicio-editar').value.trim(),
-      marca: document.getElementById('input-marca').value.trim(),
-      modelo: document.getElementById('input-modelo').value.trim(),
-      serie: document.getElementById('input-serie').value.trim(),
-    }),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.exito) {
-        mostrarMensaje('msg-guardar', '✅ Base de datos actualizada correctamente.', 'exito');
-        setTimeout(reiniciar, 1800);
-      } else {
-        mostrarMensaje('msg-guardar', data.error || 'Error al guardar.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Actualizar equipo';
+  // 1. Coincidencia exacta
+  if (mapa[desc] !== undefined) return mapa[desc];
+
+  // 2. Coincidencia parcial (la descripción contiene la denominación, o viceversa)
+  let mejorCoincidencia = null;
+  let mejorLongitud = 0;
+  Object.keys(mapa).forEach(function (denominacion) {
+    if (desc.indexOf(denominacion) !== -1 || denominacion.indexOf(desc) !== -1) {
+      if (denominacion.length > mejorLongitud) {
+        mejorLongitud = denominacion.length;
+        mejorCoincidencia = mapa[denominacion];
       }
+    }
+  });
+  return mejorCoincidencia;
+}
+
+/* ================= ENDPOINTS ================= */
+
+function doGet(e) {
+  try {
+    const accion = e.parameter.accion;
+    let resultado;
+
+    if (accion === 'buscarPorCodigo') {
+      resultado = buscarPorCodigo_(e.parameter.codigo);
+    } else if (accion === 'listarSedes') {
+      resultado = listarSedes_();
+    } else if (accion === 'listarDependencias') {
+      resultado = listarServicios_(e.parameter.sede);
+    } else if (accion === 'listarEquipos') {
+      resultado = listarEquipos_(e.parameter.sede, e.parameter.dependencia);
+    } else if (accion === 'limpiarCache') {
+      invalidarCache_();
+      resultado = { ok: true, mensaje: 'Caché limpiada.' };
+    } else {
+      resultado = { error: 'Acción no reconocida' };
+    }
+    return respuestaJson_(resultado);
+  } catch (err) {
+    return respuestaJson_({ error: err.message });
+  }
+}
+
+function doPost(e) {
+  try {
+    const datos = JSON.parse(e.postData.contents);
+    let resultado;
+    if (datos.accion === 'registrar') {
+      resultado = registrarEquipo_(datos);
+    } else {
+      resultado = actualizarEstado_(datos);
+    }
+    return respuestaJson_(resultado);
+  } catch (err) {
+    return respuestaJson_({ error: err.message });
+  }
+}
+
+function respuestaJson_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ================= BÚSQUEDA ================= */
+
+function buscarPorCodigo_(codigo) {
+  if (!codigo) return { error: 'Código vacío' };
+  const codigoStr = codigo.toString().trim();
+  const indice = obtenerIndice_();
+
+  const encontrado = indice.find(function (eq) {
+    return (eq[IDX.COD_BAR] || '').toString().trim() === codigoStr ||
+           (eq[IDX.COD_PAT] || '').toString().trim() === codigoStr;
+  });
+
+  if (encontrado) return equipoAObjetoRespuesta_(encontrado);
+  return { error: 'No se encontró ningún equipo con ese código en la base de datos.', noEncontrado: true, codigo: codigoStr };
+}
+
+function listarSedes_() {
+  const indice = obtenerIndice_();
+  const sedes = new Set();
+  indice.forEach(function (eq) {
+    const sede = (eq[IDX.SEDE] || '').toString().trim();
+    if (sede) sedes.add(sede);
+  });
+  return { sedes: Array.from(sedes).sort() };
+}
+
+function listarServicios_(sede) {
+  const indice = obtenerIndice_();
+  const servicios = new Set();
+  indice.forEach(function (eq) {
+    if ((eq[IDX.SEDE] || '').toString().trim() === sede) {
+      const servicio = (eq[IDX.SERVICIO] || '').toString().trim();
+      if (servicio) servicios.add(servicio);
+    }
+  });
+  return { dependencias: Array.from(servicios).sort() };
+}
+
+function listarEquipos_(sede, servicio) {
+  const indice = obtenerIndice_();
+  const equipos = indice
+    .filter(function (eq) {
+      const coincideSede = (eq[IDX.SEDE] || '').toString().trim() === sede;
+      const coincideServicio = !servicio || (eq[IDX.SERVICIO] || '').toString().trim() === servicio;
+      return coincideSede && coincideServicio;
     })
-    .catch(() => {
-      mostrarMensaje('msg-guardar', 'Error de conexión.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Actualizar equipo';
-    });
+    .map(equipoAObjetoRespuesta_);
+  return { equipos: equipos };
 }
 
-function reiniciar() {
-  equipoActual = null;
-  estadoSeleccionado = null;
-  codigoParaRegistrar = '';
-  estadoRegistroSeleccionado = null;
-  document.getElementById('select-tecnico').value = '';
-  document.getElementById('input-sede-editar').value = '';
-  document.getElementById('input-servicio-editar').value = '';
-  document.getElementById('input-marca').value = '';
-  document.getElementById('input-modelo').value = '';
-  document.getElementById('input-serie').value = '';
-  document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
-  document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
-  document.getElementById('btn-ir-registrar').classList.add('oculto');
-
-  document.getElementById('reg-descripcion').value = '';
-  document.getElementById('reg-input-sede').value = '';
-  document.getElementById('reg-servicio').value = '';
-  document.getElementById('reg-marca').value = '';
-  document.getElementById('reg-modelo').value = '';
-  document.getElementById('reg-serie').value = '';
-  document.getElementById('reg-tecnico').value = '';
-  document.getElementById('btn-registrar').textContent = 'Registrar equipo';
-  document.getElementById('btn-registrar').disabled = true;
-
-  document.getElementById('paso-actualizar').classList.add('oculto');
-  document.getElementById('paso-registrar').classList.add('oculto');
-  document.getElementById('paso-buscar').classList.remove('oculto');
+function equipoAObjetoRespuesta_(eq) {
+  return {
+    fila: eq[IDX.FILA],
+    codigoPatrimonial: eq[IDX.COD_PAT],
+    codigoBarras: eq[IDX.COD_BAR],
+    descripcion: eq[IDX.DESC],
+    sede: eq[IDX.SEDE],
+    vigencia: eq[IDX.VIGENCIA],
+    dependencia: eq[IDX.SERVICIO],
+    marca: eq[IDX.MARCA],
+    modelo: eq[IDX.MODELO],
+    serie: eq[IDX.SERIE],
+    ubicacion: eq[IDX.SERVICIO],
+    estadoActual: eq[IDX.ESTADO],
+    vidaUtil: buscarVidaUtil_(eq[IDX.DESC]),
+  };
 }
 
-/* ---------- Registrar equipo nuevo ---------- */
-configurarCombo('reg-input-sede', 'reg-opciones-sede', () => sedesTodas, (s) => s, (sede) => {
-  document.getElementById('reg-input-sede').value = sede;
-});
+/* ================= ACTUALIZACIÓN ================= */
 
-function abrirRegistro() {
-  document.getElementById('paso-buscar').classList.add('oculto');
-  document.getElementById('paso-registrar').classList.remove('oculto');
-  document.getElementById('reg-codigo').value = codigoParaRegistrar;
-  if (sedesTodas.length === 0) cargarSedes();
+function actualizarEstado_(datos) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+
+  try {
+    const sheet = getHoja_();
+    const fila = Number(datos.fila);
+    if (!fila) throw new Error('Fila inválida');
+
+    let fotoUrl = '';
+    if (datos.fotoBase64) {
+      fotoUrl = guardarFoto_(datos.fotoBase64, datos.codigoBarras || datos.codigoPatrimonial || fila);
+    }
+
+    const colFecha = indiceColumnaNueva_(sheet, COL_NUEVAS.FECHA_REVISION);
+    const colTecnico = indiceColumnaNueva_(sheet, COL_NUEVAS.TECNICO);
+    const colFoto = indiceColumnaNueva_(sheet, COL_NUEVAS.FOTO_URL);
+
+    sheet.getRange(fila, COL.ESTADO).setValue(datos.estado);
+    sheet.getRange(fila, colFecha).setValue(new Date());
+    sheet.getRange(fila, colTecnico).setValue(datos.tecnico || '');
+    if (fotoUrl) sheet.getRange(fila, colFoto).setValue(fotoUrl);
+
+    // Campos editables: Marca, Modelo, Serie, Sede, Servicio (solo si vienen en la petición)
+    if (typeof datos.marca === 'string') sheet.getRange(fila, COL.MARCA).setValue(datos.marca);
+    if (typeof datos.modelo === 'string') sheet.getRange(fila, COL.MODELO).setValue(datos.modelo);
+    if (typeof datos.serie === 'string') sheet.getRange(fila, COL.SERIE).setValue(datos.serie);
+    if (typeof datos.sede === 'string' && datos.sede) sheet.getRange(fila, COL.SEDE).setValue(datos.sede);
+    if (typeof datos.servicio === 'string') sheet.getRange(fila, COL.SERVICIO).setValue(datos.servicio);
+
+    invalidarCache_();
+
+    return { exito: true, fotoUrl: fotoUrl };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
-function seleccionarEstadoRegistro(estado) {
-  estadoRegistroSeleccionado = estado;
-  const botones = document.querySelectorAll('#paso-registrar .estado-btn');
-  botones.forEach(b => b.classList.remove('sel'));
-  event.target.classList.add('sel');
-  validarFormularioRegistro();
+/** Registra un equipo nuevo cuando su código no existe en la base */
+function registrarEquipo_(datos) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+
+  try {
+    const sheet = getHoja_();
+    const lastCol = sheet.getLastColumn();
+    const fila = new Array(lastCol).fill('');
+
+    fila[COL.CODIGO_PATRIMONIAL - 1] = datos.codigoPatrimonial || '';
+    fila[COL.CODIGO_BARRAS - 1] = datos.codigoBarras || '';
+    fila[COL.DESCRIPCION - 1] = datos.descripcion || '';
+    fila[COL.SEDE - 1] = datos.sede || '';
+    fila[COL.MARCA - 1] = datos.marca || '';
+    fila[COL.MODELO - 1] = datos.modelo || '';
+    fila[COL.SERIE - 1] = datos.serie || '';
+    fila[COL.SERVICIO - 1] = datos.servicio || '';
+    fila[COL.ESTADO - 1] = datos.estado || 'OPERATIVO';
+
+    const colFecha = indiceColumnaNueva_(sheet, COL_NUEVAS.FECHA_REVISION);
+    const colTecnico = indiceColumnaNueva_(sheet, COL_NUEVAS.TECNICO);
+    fila[colFecha - 1] = new Date();
+    fila[colTecnico - 1] = datos.tecnico || '';
+
+    sheet.appendRow(fila);
+    invalidarCache_();
+
+    return { exito: true, fila: sheet.getLastRow() };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
-function validarFormularioRegistro() {
-  const descripcion = document.getElementById('reg-descripcion').value.trim();
-  const tecnico = document.getElementById('reg-tecnico').value;
-  document.getElementById('btn-registrar').disabled = !(descripcion && tecnico);
+function guardarFoto_(base64, nombreBase) {
+  const carpetas = DriveApp.getFoldersByName(CONFIG.CARPETA_DRIVE_FOTOS);
+  const carpeta = carpetas.hasNext() ? carpetas.next() : DriveApp.createFolder(CONFIG.CARPETA_DRIVE_FOTOS);
+
+  const partes = base64.split(',');
+  const contenido = partes.length > 1 ? partes[1] : partes[0];
+  const blob = Utilities.newBlob(Utilities.base64Decode(contenido), 'image/jpeg',
+    'reporte_' + nombreBase + '_' + new Date().getTime() + '.jpg');
+
+  const archivo = carpeta.createFile(blob);
+  archivo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return archivo.getUrl();
 }
-
-function registrarEquipo() {
-  const btn = document.getElementById('btn-registrar');
-  btn.disabled = true;
-  btn.textContent = 'Registrando...';
-
-  const tipoCodigo = document.getElementById('reg-tipo-codigo').value;
-  const codigo = document.getElementById('reg-codigo').value.trim();
-
-  fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({
-      accion: 'registrar',
-      codigoBarras: tipoCodigo === 'barras' ? codigo : '',
-      codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
-      descripcion: document.getElementById('reg-descripcion').value.trim(),
-      sede: document.getElementById('reg-input-sede').value.trim(),
-      servicio: document.getElementById('reg-servicio').value.trim(),
-      marca: document.getElementById('reg-marca').value.trim(),
-      modelo: document.getElementById('reg-modelo').value.trim(),
-      serie: document.getElementById('reg-serie').value.trim(),
-      estado: estadoRegistroSeleccionado || 'OPERATIVO',
-      tecnico: document.getElementById('reg-tecnico').value,
-    }),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.exito) {
-        mostrarMensaje('msg-registrar', '✅ Equipo registrado correctamente.', 'exito');
-        setTimeout(reiniciar, 1800);
-      } else {
-        mostrarMensaje('msg-registrar', data.error || 'Error al registrar.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Registrar equipo';
-      }
-    })
-    .catch(() => {
-      mostrarMensaje('msg-registrar', 'Error de conexión.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Registrar equipo';
-    });
-}
-
-function mostrarMensaje(id, texto, tipo) {
-  const el = document.getElementById(id);
-  el.textContent = texto;
-  el.className = 'mensaje ' + tipo;
-  setTimeout(() => el.classList.add('oculto'), 4000);
-}
-
-window.addEventListener('load', () => iniciarEscaner());
-</script>
-
-</body>
-</html>
