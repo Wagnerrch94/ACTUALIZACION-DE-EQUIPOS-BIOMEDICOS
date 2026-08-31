@@ -282,6 +282,7 @@ function iniciarEscaner() {
     { fps: 10, qrbox: { width: 250, height: 120 } },
     (codigoDetectado) => {
       lectorInstancia.pause(true);
+      mostrarMensaje('msg-scan', `Código detectado: "${codigoDetectado}" — buscando...`, 'exito');
       buscarPorCodigo(codigoDetectado, () => {
         try { lectorInstancia.resume(); } catch (e) {}
       });
