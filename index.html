@@ -135,6 +135,12 @@
   <div id="paso-actualizar" class="tarjeta oculto">
     <div class="equipo-info" id="info-equipo"></div>
 
+    <label>Sede</label>
+    <input type="text" id="input-sede-editar">
+
+    <label>Servicio</label>
+    <input type="text" id="input-servicio-editar">
+
     <label>Marca</label>
     <input type="text" id="input-marca">
 
@@ -166,6 +172,7 @@
     </select>
 
     <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
+    <button style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="escanearOtro()">📷 Escanear otro código</button>
     <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
 
     <div id="msg-guardar" class="mensaje oculto"></div>
@@ -266,15 +273,18 @@ function cambiarTab(tab) {
 
 /* ---------- Escáner de código de barras ---------- */
 let lectorIniciado = false;
+let lectorInstancia = null;
 function iniciarEscaner() {
   lectorIniciado = true;
-  const lector = new Html5Qrcode('lector-camara');
-  lector.start(
+  lectorInstancia = new Html5Qrcode('lector-camara');
+  lectorInstancia.start(
     { facingMode: 'environment' },
     { fps: 10, qrbox: { width: 250, height: 120 } },
     (codigoDetectado) => {
-      lector.pause();
-      buscarPorCodigo(codigoDetectado, () => lector.resume());
+      lectorInstancia.pause(true);
+      buscarPorCodigo(codigoDetectado, () => {
+        try { lectorInstancia.resume(); } catch (e) {}
+      });
     },
     () => {}
   ).catch((err) => {
@@ -287,18 +297,31 @@ function buscarPorCodigo(codigo, alTerminar) {
     .then(r => r.json())
     .then(data => {
       if (data.error) {
-        mostrarMensaje('msg-scan', data.error, 'error');
+        mostrarMensaje('msg-scan', `Código detectado: "${codigo}" — ${data.error}`, 'error');
         if (data.noEncontrado) {
           codigoParaRegistrar = codigo;
           document.getElementById('btn-ir-registrar').classList.remove('oculto');
         }
-        if (alTerminar) setTimeout(alTerminar, 1500);
+        if (alTerminar) setTimeout(alTerminar, 2500);
       } else {
         document.getElementById('btn-ir-registrar').classList.add('oculto');
         mostrarEquipo(data);
+        if (alTerminar) setTimeout(alTerminar, 500); // reanuda la cámara en segundo plano
       }
     })
-    .catch(() => mostrarMensaje('msg-scan', 'Error de conexión.', 'error'));
+    .catch(() => {
+      mostrarMensaje('msg-scan', 'Error de conexión.', 'error');
+      if (alTerminar) setTimeout(alTerminar, 2000);
+    });
+}
+
+/** Vuelve directo a la pestaña de escaneo y reanuda la cámara si estaba pausada */
+function escanearOtro() {
+  reiniciar();
+  cambiarTab('scan');
+  if (lectorInstancia) {
+    try { lectorInstancia.resume(); } catch (e) {}
+  }
 }
 
 /* ---------- Combobox genérico (buscador con filtro) ---------- */
@@ -398,6 +421,10 @@ function mostrarEquipo(equipo) {
   equipoActual = equipo;
   document.getElementById('paso-buscar').classList.add('oculto');
   document.getElementById('paso-actualizar').classList.remove('oculto');
+  const añosVigencia = parseInt((equipo.vigencia || '').toString().match(/(\d+)\s*A/i)?.[1] || '', 10);
+  const vidaUtilExcedida = !isNaN(añosVigencia) && equipo.vidaUtil !== null && equipo.vidaUtil !== undefined && añosVigencia >= equipo.vidaUtil;
+  const textoVidaUtil = equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo';
+
   document.getElementById('info-equipo').innerHTML = `
     <b>${equipo.descripcion}</b><br>
     Código Patrimonial: ${equipo.codigoPatrimonial || 'S/D'}<br>
@@ -405,9 +432,11 @@ function mostrarEquipo(equipo) {
     Sede: ${equipo.sede}<br>
     Servicio: ${equipo.dependencia}<br>
     Vigencia del equipo: ${equipo.vigencia || 'S/D'}<br>
-    Vida útil: <b>${equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo'}</b><br>
+    Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — ¡EXCEDIDA!' : ''}</b><br>
     Estado actual: <b>${equipo.estadoActual}</b>
   `;
+  document.getElementById('input-sede-editar').value = equipo.sede || '';
+  document.getElementById('input-servicio-editar').value = equipo.dependencia || '';
   document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
   document.getElementById('input-modelo').value = (equipo.modelo && equipo.modelo !== 'SIN MODELO') ? equipo.modelo : '';
   document.getElementById('input-serie').value = (equipo.serie && equipo.serie !== 'SIN SERIE') ? equipo.serie : '';
@@ -438,6 +467,8 @@ function guardarActualizacion() {
       codigoPatrimonial: equipoActual.codigoPatrimonial,
       estado: estadoSeleccionado,
       tecnico: document.getElementById('select-tecnico').value,
+      sede: document.getElementById('input-sede-editar').value.trim(),
+      servicio: document.getElementById('input-servicio-editar').value.trim(),
       marca: document.getElementById('input-marca').value.trim(),
       modelo: document.getElementById('input-modelo').value.trim(),
       serie: document.getElementById('input-serie').value.trim(),
@@ -467,6 +498,8 @@ function reiniciar() {
   codigoParaRegistrar = '';
   estadoRegistroSeleccionado = null;
   document.getElementById('select-tecnico').value = '';
+  document.getElementById('input-sede-editar').value = '';
+  document.getElementById('input-servicio-editar').value = '';
   document.getElementById('input-marca').value = '';
   document.getElementById('input-modelo').value = '';
   document.getElementById('input-serie').value = '';
