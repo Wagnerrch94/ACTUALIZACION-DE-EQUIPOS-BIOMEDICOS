@@ -48,9 +48,10 @@
     display: flex; align-items: center; gap: 12px;
   }
   header .btn-recargar {
-    margin-left: auto; width: auto; padding: 8px; margin-top: 0;
+    margin-left: auto; width: auto; padding: 8px 12px; margin-top: 0;
     background: rgba(255,255,255,0.12); border: none; border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
+    display: flex; align-items: center; gap: 6px;
+    color: #fff; font-size: 13.5px; font-weight: 600; white-space: nowrap;
   }
   header .btn-recargar:active { background: rgba(255,255,255,0.25); }
   header .marca-icono {
@@ -90,14 +91,14 @@
   .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--fondo); padding: 4px; border-radius: 11px; }
   .tab-btn {
     flex: 1; padding: 10px 8px; border: none; border-radius: 8px;
-    background: transparent; color: var(--texto-suave); font-weight: 600; font-size: 13.5px;
+    background: transparent; color: var(--texto-suave); font-weight: 600; font-size: 15px;
     font-family: inherit; cursor: pointer; transition: background 0.15s, color 0.15s;
   }
   .tab-btn.activo { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 3px rgba(15,47,61,0.12); }
 
   .filtro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
   .filtro-grid .tab-btn {
-    background: var(--fondo); border: 1.5px solid var(--borde); padding: 11px 6px; font-size: 12.5px;
+    background: var(--fondo); border: 1.5px solid var(--borde); padding: 13px 6px; font-size: 14px;
   }
   .filtro-grid .tab-btn.activo { background: var(--primario); color: #fff; border-color: var(--primario); box-shadow: none; }
 
@@ -105,21 +106,25 @@
 
   select, button, input {
     width: 100%; padding: 12px 14px; margin-top: 8px;
-    border-radius: 10px; border: 1.5px solid var(--borde); font-size: 15.5px;
+    border-radius: 10px; border: 1.5px solid var(--borde); font-size: 16.5px;
     font-family: inherit; color: var(--texto); background: var(--superficie);
   }
   input:focus, select:focus { outline: none; border-color: var(--primario); box-shadow: 0 0 0 3px var(--primario-claro); }
   input:disabled { background: #f3f4f4; color: #9aa6a5; }
 
-  label { font-size: 12.5px; font-weight: 700; color: var(--texto-suave); margin-top: 16px; display: block; text-transform: uppercase; letter-spacing: 0.02em; }
+  label { font-size: 13.5px; font-weight: 700; color: var(--texto-suave); margin-top: 16px; display: block; text-transform: uppercase; letter-spacing: 0.02em; }
   label:first-of-type { margin-top: 0; }
 
   button { cursor: pointer; font-weight: 600; font-family: inherit; transition: opacity 0.15s, transform 0.05s, background 0.15s; }
   button:active { transform: scale(0.985); }
+  /* Íconos (emoji) más grandes y amigables dentro de botones */
+  .tab-btn, .btn-primario, .btn-secundario, .btn-terciario, .btn-registro, .estado-btn {
+    font-size: 1.08em;
+  }
 
   .btn-primario {
     background: var(--primario); color: #fff; border: 1.5px solid var(--primario);
-    margin-top: 18px; padding: 14px; font-size: 15.5px;
+    margin-top: 18px; padding: 15px; font-size: 16.5px;
   }
   .btn-primario:hover { background: var(--primario-oscuro); }
   .btn-primario:disabled { background: #c3cecd; border-color: #c3cecd; color: #fff; }
@@ -140,7 +145,7 @@
   .estado-opciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
   .estado-btn {
     flex: 1; padding: 14px 6px; border-radius: 10px; border: 1.5px solid var(--borde);
-    background: var(--superficie); color: var(--texto-suave); font-weight: 700; font-size: 12.5px; text-align: center;
+    background: var(--superficie); color: var(--texto-suave); font-weight: 700; font-size: 14.5px; text-align: center;
   }
   .estado-btn.op.sel { background: var(--verde-claro); border-color: var(--verde); color: var(--verde); }
   .estado-btn.parcial.sel { background: var(--ambar-claro); border-color: var(--ambar); color: var(--ambar); }
@@ -197,10 +202,11 @@
     <div class="subtitulo">Escanea, actualiza el estado y listo</div>
   </div>
   <button type="button" class="btn-recargar" onclick="recargarApp()" title="Recargar la app (usa esto si algo se ve desactualizado)">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M20 11A8 8 0 1 0 19.5 15" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
       <path d="M20 4v7h-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
+    Actualizar sistema
   </button>
 </header>
 
