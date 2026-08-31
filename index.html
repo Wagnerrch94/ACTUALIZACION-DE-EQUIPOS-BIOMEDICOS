@@ -4,154 +4,181 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Actualización de Equipos Biomédicos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
-    --azul: #1565c0;
-    --azul-oscuro: #0d3f73;
-    --azul-claro: #e8f1fc;
-    --verde: #1e8e5a;
-    --verde-claro: #e6f4ea;
-    --ambar: #b9740a;
-    --ambar-claro: #fdf1e0;
-    --rojo: #d93025;
-    --rojo-claro: #fde8e6;
-    --gris: #f2f4f7;
-    --borde: #dde1e7;
-    --texto: #1c1f26;
-    --texto-suave: #667085;
+    --tinta: #0f2f3d;
+    --primario: #0e6e6e;
+    --primario-oscuro: #0a4f4f;
+    --primario-claro: #e6f3f2;
+    --verde: #1a8754;
+    --verde-claro: #e8f6ef;
+    --ambar: #b3720a;
+    --ambar-claro: #fdf2e0;
+    --rojo: #c62b1f;
+    --rojo-claro: #fbe9e7;
+    --fondo: #f5f7f7;
+    --superficie: #ffffff;
+    --borde: #e1e6e6;
+    --texto: #14201f;
+    --texto-suave: #5b6b6a;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--gris);
+    font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--fondo);
     color: var(--texto);
-    line-height: 1.45;
+    line-height: 1.5;
+    font-size: 15px;
   }
-  header {
-    background: linear-gradient(135deg, var(--azul-oscuro), var(--azul));
-    color: #fff;
-    padding: 20px 20px 18px;
-    text-align: center;
-  }
-  header .titulo { font-weight: 700; font-size: 19px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  header .subtitulo { font-size: 13px; opacity: 0.85; margin-top: 4px; }
 
-  .contenedor { max-width: 480px; margin: 0 auto; padding: 16px; padding-bottom: 40px; }
+  header {
+    background: var(--tinta);
+    color: #fff;
+    padding: 22px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  header .marca-icono {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--primario); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  header .titulo {
+    font-family: "Sora", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em;
+  }
+  header .subtitulo { font-size: 12.5px; color: #aebdbc; margin-top: 2px; }
+
+  .contenedor { max-width: 480px; margin: 0 auto; padding: 18px 16px 44px; }
 
   .paso-badge {
-    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
-    color: var(--azul); background: var(--azul-claro); padding: 5px 12px;
-    border-radius: 999px; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--primario); margin-bottom: 14px;
+  }
+  .paso-badge::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primario);
   }
 
   .tarjeta {
-    background: #fff;
-    border-radius: 16px;
+    background: var(--superficie);
+    border-radius: 14px;
     padding: 20px;
-    margin-bottom: 16px;
-    box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 8px rgba(16,24,40,0.06);
+    margin-bottom: 14px;
+    border: 1px solid var(--borde);
+    box-shadow: 0 1px 2px rgba(15,47,61,0.04);
   }
 
   .instructivo {
-    font-size: 14px; color: var(--texto-suave); margin: 0 0 14px; line-height: 1.5;
+    font-size: 13.5px; color: var(--texto-suave); margin: 0 0 14px; line-height: 1.55;
   }
 
-  .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--fondo); padding: 4px; border-radius: 11px; }
   .tab-btn {
-    flex: 1; padding: 13px 8px; border: 2px solid var(--borde); border-radius: 12px;
-    background: #fff; color: var(--azul); font-weight: 600; font-size: 14px;
-    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+    flex: 1; padding: 10px 8px; border: none; border-radius: 8px;
+    background: transparent; color: var(--texto-suave); font-weight: 600; font-size: 13.5px;
+    font-family: inherit; cursor: pointer; transition: background 0.15s, color 0.15s;
   }
-  .tab-btn.activo { background: var(--azul); color: #fff; border-color: var(--azul); }
+  .tab-btn.activo { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 3px rgba(15,47,61,0.12); }
 
   #lector-camara { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 180px; }
 
   select, button, input {
-    width: 100%; padding: 13px 14px; margin-top: 8px;
-    border-radius: 12px; border: 1.5px solid var(--borde); font-size: 16px;
-    font-family: inherit; color: var(--texto);
+    width: 100%; padding: 12px 14px; margin-top: 8px;
+    border-radius: 10px; border: 1.5px solid var(--borde); font-size: 15.5px;
+    font-family: inherit; color: var(--texto); background: var(--superficie);
   }
-  input:focus, select:focus { outline: none; border-color: var(--azul); }
-  input:disabled { background: #f3f4f6; color: #9aa1ab; }
+  input:focus, select:focus { outline: none; border-color: var(--primario); box-shadow: 0 0 0 3px var(--primario-claro); }
+  input:disabled { background: #f3f4f4; color: #9aa6a5; }
 
-  label { font-size: 13px; font-weight: 600; color: var(--texto-suave); margin-top: 16px; display: block; }
+  label { font-size: 12.5px; font-weight: 700; color: var(--texto-suave); margin-top: 16px; display: block; text-transform: uppercase; letter-spacing: 0.02em; }
   label:first-of-type { margin-top: 0; }
 
-  button { cursor: pointer; font-weight: 600; transition: opacity 0.15s, transform 0.05s; }
-  button:active { transform: scale(0.98); }
+  button { cursor: pointer; font-weight: 600; font-family: inherit; transition: opacity 0.15s, transform 0.05s, background 0.15s; }
+  button:active { transform: scale(0.985); }
 
   .btn-primario {
-    background: var(--azul); color: #fff; border: none;
-    margin-top: 18px; padding: 15px; font-size: 16px; box-shadow: 0 2px 6px rgba(21,101,192,0.3);
+    background: var(--primario); color: #fff; border: 1.5px solid var(--primario);
+    margin-top: 18px; padding: 14px; font-size: 15.5px;
   }
-  .btn-primario:disabled { background: #b7c6da; box-shadow: none; }
+  .btn-primario:hover { background: var(--primario-oscuro); }
+  .btn-primario:disabled { background: #c3cecd; border-color: #c3cecd; color: #fff; }
 
   .btn-secundario {
-    margin-top: 10px; background: #fff; color: var(--azul);
-    border: 1.5px solid var(--azul); padding: 13px;
+    margin-top: 10px; background: var(--superficie); color: var(--primario);
+    border: 1.5px solid var(--primario); padding: 12px;
   }
   .btn-terciario {
-    margin-top: 10px; background: #fff; color: var(--texto-suave);
-    border: 1.5px solid var(--borde); padding: 13px;
+    margin-top: 10px; background: transparent; color: var(--texto-suave);
+    border: 1.5px solid var(--borde); padding: 12px;
   }
   .btn-registro {
     margin-top: 12px; background: var(--verde-claro); color: var(--verde);
-    border: 1.5px dashed var(--verde); padding: 13px;
+    border: 1.5px solid var(--verde); padding: 12px;
   }
 
   .estado-opciones { display: flex; gap: 8px; margin-top: 8px; }
   .estado-btn {
-    flex: 1; padding: 16px 6px; border-radius: 12px; border: 2px solid var(--borde);
-    background: #fff; font-weight: 700; font-size: 13px; text-align: center;
+    flex: 1; padding: 14px 6px; border-radius: 10px; border: 1.5px solid var(--borde);
+    background: var(--superficie); color: var(--texto-suave); font-weight: 700; font-size: 12.5px; text-align: center;
   }
-  .estado-btn.op { border-color: var(--verde); color: var(--verde); }
-  .estado-btn.op.sel { background: var(--verde); color: #fff; }
-  .estado-btn.parcial { border-color: var(--ambar); color: var(--ambar); }
-  .estado-btn.parcial.sel { background: var(--ambar); color: #fff; }
-  .estado-btn.inop { border-color: var(--rojo); color: var(--rojo); }
-  .estado-btn.inop.sel { background: var(--rojo); color: #fff; }
+  .estado-btn.op.sel { background: var(--verde-claro); border-color: var(--verde); color: var(--verde); }
+  .estado-btn.parcial.sel { background: var(--ambar-claro); border-color: var(--ambar); color: var(--ambar); }
+  .estado-btn.inop.sel { background: var(--rojo-claro); border-color: var(--rojo); color: var(--rojo); }
 
   .equipo-info {
-    font-size: 14px; line-height: 1.9; background: var(--azul-claro);
-    border-radius: 12px; padding: 14px 16px; margin-bottom: 6px;
+    font-size: 13.5px; line-height: 2; background: var(--primario-claro);
+    border-radius: 12px; padding: 16px; margin-bottom: 6px; border: 1px solid #d4e8e6;
   }
-  .equipo-info .titulo-equipo { display: block; font-size: 16px; font-weight: 700; color: var(--azul-oscuro); margin-bottom: 6px; }
-  .equipo-info b { color: var(--azul-oscuro); }
+  .equipo-info .titulo-equipo {
+    display: block; font-family: "Sora", sans-serif; font-size: 15.5px; font-weight: 700;
+    color: var(--tinta); margin-bottom: 8px; line-height: 1.3;
+  }
+  .equipo-info b { color: var(--tinta); }
   .equipo-info .fila-dato { color: var(--texto-suave); }
   .equipo-info .fila-dato b { color: var(--texto); font-weight: 600; }
 
   .oculto { display: none !important; }
 
-  .mensaje { padding: 13px 14px; border-radius: 12px; font-size: 14px; margin-top: 12px; font-weight: 500; }
+  .mensaje { padding: 12px 14px; border-radius: 10px; font-size: 13.5px; margin-top: 12px; font-weight: 500; }
   .mensaje.error { background: var(--rojo-claro); color: var(--rojo); }
   .mensaje.exito { background: var(--verde-claro); color: var(--verde); }
 
-  .opcional { color: #9aa1ab; font-weight: 400; }
+  .opcional { color: #9aa6a5; font-weight: 400; text-transform: none; letter-spacing: 0; }
 
   /* Buscador tipo combobox */
   .combo { position: relative; }
   .combo-opciones {
-    position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 2px;
-    background: #fff; border: 1.5px solid var(--borde);
+    position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 4px;
+    background: var(--superficie); border: 1.5px solid var(--borde);
     border-radius: 12px; max-height: 240px; overflow-y: auto;
-    box-shadow: 0 6px 16px rgba(16,24,40,0.12);
+    box-shadow: 0 8px 20px rgba(15,47,61,0.14);
   }
   .combo-opcion {
-    padding: 13px 14px; font-size: 14.5px; cursor: pointer; border-bottom: 1px solid #f0f1f3;
+    padding: 12px 14px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f1f1;
   }
   .combo-opcion:last-child { border-bottom: none; }
-  .combo-opcion:hover, .combo-opcion.activa { background: var(--azul-claro); }
-  .combo-vacio { padding: 13px 14px; font-size: 14px; color: #9aa1ab; }
+  .combo-opcion:hover, .combo-opcion.activa { background: var(--primario-claro); }
+  .combo-vacio { padding: 12px 14px; font-size: 13.5px; color: #9aa6a5; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="titulo">🔧 Actualización de Equipos Biomédicos</div>
-  <div class="subtitulo">Escanea o busca el equipo, actualiza su estado y listo</div>
+  <div class="marca-icono">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M11 2v6M13 2v6M4 8h16l-1.5 11a2 2 0 0 1-2 1.7H7.5a2 2 0 0 1-2-1.7L4 8Z" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M9 12h6M12 9v6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <div>
+    <div class="titulo">Equipos Biomédicos</div>
+    <div class="subtitulo">Escanea, actualiza el estado y listo</div>
+  </div>
 </header>
 
 <div class="contenedor">
@@ -166,9 +193,10 @@
 
     <div id="vista-scan">
       <p class="instructivo">Apunta la cámara al código de barras de la etiqueta del equipo. Cuando lo reconozca, presiona "Capturar y buscar".</p>
-      <div id="lector-camara"></div>
+      <button id="btn-iniciar-camara" class="btn-primario" onclick="iniciarEscaner()">📷 Iniciar escáner</button>
+      <div id="lector-camara" class="oculto"></div>
       <div id="codigo-en-vivo" class="mensaje oculto"></div>
-      <button id="btn-capturar" class="btn-primario" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
+      <button id="btn-capturar" class="btn-primario oculto" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
       <div id="msg-scan" class="mensaje oculto"></div>
       <button id="btn-ir-registrar" class="oculto btn-registro" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
     </div>
@@ -221,6 +249,11 @@
       <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">⛔ Inoperativo</button>
     </div>
 
+    <div id="campo-observacion" class="oculto">
+      <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
+      <input type="text" id="input-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormulario()">
+    </div>
+
     <label>Técnico</label>
     <select id="select-tecnico" onchange="validarFormulario()">
       <option value="">— Elegir ejecutor —</option>
@@ -236,15 +269,16 @@
     </select>
 
     <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
-    <button style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="escanearOtro()">📷 Escanear otro código</button>
-    <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
+    <button class="btn-secundario" onclick="escanearOtro()">📷 Escanear otro código</button>
+    <button class="btn-terciario" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
 
     <div id="msg-guardar" class="mensaje oculto"></div>
   </div>
 
   <!-- Paso 3: registrar equipo nuevo -->
   <div id="paso-registrar" class="tarjeta oculto">
-    <h3 style="margin-top:0;">Registrar equipo nuevo</h3>
+    <span class="paso-badge">Registrar equipo nuevo</span>
+    <p class="instructivo">Completa los datos que tengas a la mano. Los que no conozcas los puedes dejar en blanco.</p>
 
     <label>Código escaneado</label>
     <input type="text" id="reg-codigo" readonly>
@@ -278,9 +312,14 @@
 
     <label>Estado inicial</label>
     <div class="estado-opciones">
-      <button class="estado-btn op" onclick="seleccionarEstadoRegistro('OPERATIVO')">Operativo</button>
-      <button class="estado-btn parcial" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE')">Parcial</button>
-      <button class="estado-btn inop" onclick="seleccionarEstadoRegistro('INOPERATIVO')">Inoperativo</button>
+      <button class="estado-btn op" onclick="seleccionarEstadoRegistro('OPERATIVO')">✅ Operativo</button>
+      <button class="estado-btn parcial" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE')">⚠️ Parcial</button>
+      <button class="estado-btn inop" onclick="seleccionarEstadoRegistro('INOPERATIVO')">⛔ Inoperativo</button>
+    </div>
+
+    <div id="reg-campo-observacion" class="oculto">
+      <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
+      <input type="text" id="reg-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormularioRegistro()">
     </div>
 
     <label>Técnico</label>
@@ -298,7 +337,7 @@
     </select>
 
     <button class="btn-primario" id="btn-registrar" onclick="registrarEquipo()" disabled>Registrar equipo</button>
-    <button style="margin-top:8px;background:#fff;color:#666;" onclick="reiniciar()">Cancelar</button>
+    <button class="btn-terciario" onclick="reiniciar()">Cancelar</button>
 
     <div id="msg-registrar" class="mensaje oculto"></div>
   </div>
@@ -330,9 +369,7 @@ function cambiarTab(tab) {
   if (tab === 'manual' && sedesTodas.length === 0) {
     cargarSedes();
   }
-  if (tab === 'scan' && !lectorIniciado) {
-    iniciarEscaner();
-  }
+  // La cámara ya NO arranca sola: el técnico la inicia con el botón "Iniciar escáner"
 }
 
 /* ---------- Escáner de código de barras ---------- */
@@ -341,7 +378,12 @@ let lectorInstancia = null;
 let ultimoCodigoDetectado = null;
 
 function iniciarEscaner() {
+  if (lectorIniciado) return;
   lectorIniciado = true;
+  document.getElementById('btn-iniciar-camara').classList.add('oculto');
+  document.getElementById('lector-camara').classList.remove('oculto');
+  document.getElementById('btn-capturar').classList.remove('oculto');
+
   lectorInstancia = new Html5Qrcode('lector-camara');
   lectorInstancia.start(
     { facingMode: 'environment' },
@@ -355,6 +397,10 @@ function iniciarEscaner() {
     },
     () => {}
   ).catch((err) => {
+    lectorIniciado = false;
+    document.getElementById('btn-iniciar-camara').classList.remove('oculto');
+    document.getElementById('lector-camara').classList.add('oculto');
+    document.getElementById('btn-capturar').classList.add('oculto');
     mostrarMensaje('msg-scan', 'No se pudo acceder a la cámara: ' + err, 'error');
   });
 }
@@ -363,7 +409,8 @@ function capturarCodigo() {
   if (!ultimoCodigoDetectado) return;
   const codigo = ultimoCodigoDetectado;
   document.getElementById('btn-capturar').disabled = true;
-  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito');
+  document.getElementById('btn-ir-registrar').classList.add('oculto');
+  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito', true);
   if (lectorInstancia) { try { lectorInstancia.pause(true); } catch (e) {} }
   buscarPorCodigo(codigo, () => {
     if (lectorInstancia) { try { lectorInstancia.resume(); } catch (e) {} }
@@ -379,11 +426,11 @@ function buscarPorCodigo(codigo, alTerminar) {
       ultimoCodigoDetectado = null;
       if (data.error) {
         if (data.noEncontrado) {
-          mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error');
+          mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error', true);
           codigoParaRegistrar = codigo;
           document.getElementById('btn-ir-registrar').classList.remove('oculto');
         } else {
-          mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error');
+          mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error', true);
         }
         if (alTerminar) setTimeout(alTerminar, 500);
       } else {
@@ -512,14 +559,14 @@ function mostrarEquipo(equipo) {
   const textoVidaUtil = equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo';
 
   document.getElementById('info-equipo').innerHTML = `
-    <b>${equipo.descripcion}</b><br>
-    Código Patrimonial: ${equipo.codigoPatrimonial || 'S/D'}<br>
-    Código de Barras: ${equipo.codigoBarras || 'S/D'}<br>
-    Sede: ${equipo.sede}<br>
-    Servicio: ${equipo.dependencia}<br>
-    Vigencia del equipo: ${equipo.vigencia || 'S/D'}<br>
-    Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — EQUIPO EN OBSOLESCENCIA' : ''}</b><br>
-    Estado actual: <b>${equipo.estadoActual}</b>
+    <span class="titulo-equipo">${equipo.descripcion}</span>
+    <div class="fila-dato">Código Patrimonial: <b>${equipo.codigoPatrimonial || 'S/D'}</b></div>
+    <div class="fila-dato">Código de Barras: <b>${equipo.codigoBarras || 'S/D'}</b></div>
+    <div class="fila-dato">Sede: <b>${equipo.sede}</b></div>
+    <div class="fila-dato">Servicio: <b>${equipo.dependencia}</b></div>
+    <div class="fila-dato">Vigencia del equipo: <b>${equipo.vigencia || 'S/D'}</b></div>
+    <div class="fila-dato">Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — EQUIPO EN OBSOLESCENCIA' : ''}</b></div>
+    <div class="fila-dato">Estado actual: <b>${equipo.estadoActual}</b></div>
   `;
   document.getElementById('input-sede-editar').value = equipo.sede || '';
   document.getElementById('input-servicio-editar').value = equipo.dependencia || '';
@@ -530,14 +577,20 @@ function mostrarEquipo(equipo) {
 
 function seleccionarEstado(estado) {
   estadoSeleccionado = estado;
-  document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('#paso-actualizar .estado-btn').forEach(b => b.classList.remove('sel'));
   event.target.classList.add('sel');
+  const requiereObservacion = estado === 'OPERATIVO PARCIALMENTE' || estado === 'INOPERATIVO';
+  document.getElementById('campo-observacion').classList.toggle('oculto', !requiereObservacion);
+  if (!requiereObservacion) document.getElementById('input-observacion').value = '';
   validarFormulario();
 }
 
 function validarFormulario() {
   const tecnico = document.getElementById('select-tecnico').value;
-  document.getElementById('btn-guardar').disabled = !(estadoSeleccionado && tecnico);
+  const requiereObservacion = estadoSeleccionado === 'OPERATIVO PARCIALMENTE' || estadoSeleccionado === 'INOPERATIVO';
+  const observacion = document.getElementById('input-observacion').value.trim();
+  const valido = estadoSeleccionado && tecnico && (!requiereObservacion || observacion);
+  document.getElementById('btn-guardar').disabled = !valido;
 }
 
 function guardarActualizacion() {
@@ -552,6 +605,7 @@ function guardarActualizacion() {
       codigoBarras: equipoActual.codigoBarras,
       codigoPatrimonial: equipoActual.codigoPatrimonial,
       estado: estadoSeleccionado,
+      observacion: document.getElementById('input-observacion').value.trim(),
       tecnico: document.getElementById('select-tecnico').value,
       sede: document.getElementById('input-sede-editar').value.trim(),
       servicio: document.getElementById('input-servicio-editar').value.trim(),
@@ -589,9 +643,12 @@ function reiniciar() {
   document.getElementById('input-marca').value = '';
   document.getElementById('input-modelo').value = '';
   document.getElementById('input-serie').value = '';
+  document.getElementById('input-observacion').value = '';
+  document.getElementById('campo-observacion').classList.add('oculto');
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
   document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
   document.getElementById('btn-ir-registrar').classList.add('oculto');
+  document.getElementById('msg-scan').classList.add('oculto');
 
   document.getElementById('reg-descripcion').value = '';
   document.getElementById('reg-input-sede').value = '';
@@ -599,6 +656,8 @@ function reiniciar() {
   document.getElementById('reg-marca').value = '';
   document.getElementById('reg-modelo').value = '';
   document.getElementById('reg-serie').value = '';
+  document.getElementById('reg-observacion').value = '';
+  document.getElementById('reg-campo-observacion').classList.add('oculto');
   document.getElementById('reg-tecnico').value = '';
   document.getElementById('btn-registrar').textContent = 'Registrar equipo';
   document.getElementById('btn-registrar').disabled = true;
@@ -625,13 +684,19 @@ function seleccionarEstadoRegistro(estado) {
   const botones = document.querySelectorAll('#paso-registrar .estado-btn');
   botones.forEach(b => b.classList.remove('sel'));
   event.target.classList.add('sel');
+  const requiereObservacion = estado === 'OPERATIVO PARCIALMENTE' || estado === 'INOPERATIVO';
+  document.getElementById('reg-campo-observacion').classList.toggle('oculto', !requiereObservacion);
+  if (!requiereObservacion) document.getElementById('reg-observacion').value = '';
   validarFormularioRegistro();
 }
 
 function validarFormularioRegistro() {
   const descripcion = document.getElementById('reg-descripcion').value.trim();
   const tecnico = document.getElementById('reg-tecnico').value;
-  document.getElementById('btn-registrar').disabled = !(descripcion && tecnico);
+  const requiereObservacion = estadoRegistroSeleccionado === 'OPERATIVO PARCIALMENTE' || estadoRegistroSeleccionado === 'INOPERATIVO';
+  const observacion = document.getElementById('reg-observacion').value.trim();
+  const valido = descripcion && tecnico && (!requiereObservacion || observacion);
+  document.getElementById('btn-registrar').disabled = !valido;
 }
 
 function registrarEquipo() {
@@ -655,6 +720,7 @@ function registrarEquipo() {
       modelo: document.getElementById('reg-modelo').value.trim(),
       serie: document.getElementById('reg-serie').value.trim(),
       estado: estadoRegistroSeleccionado || 'OPERATIVO',
+      observacion: document.getElementById('reg-observacion').value.trim(),
       tecnico: document.getElementById('reg-tecnico').value,
     }),
   })
@@ -676,14 +742,17 @@ function registrarEquipo() {
     });
 }
 
-function mostrarMensaje(id, texto, tipo) {
+function mostrarMensaje(id, texto, tipo, persistente) {
   const el = document.getElementById(id);
   el.textContent = texto;
   el.className = 'mensaje ' + tipo;
-  setTimeout(() => el.classList.add('oculto'), 4000);
+  el.classList.remove('oculto');
+  if (!persistente) {
+    setTimeout(() => el.classList.add('oculto'), 4000);
+  }
 }
 
-window.addEventListener('load', () => iniciarEscaner());
+// La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
 </script>
 
 </body>
