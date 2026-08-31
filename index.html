@@ -7,109 +7,170 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root {
-    --azul: #0f62d6;
-    --azul-oscuro: #0a3f8f;
+    --azul: #1565c0;
+    --azul-oscuro: #0d3f73;
+    --azul-claro: #e8f1fc;
     --verde: #1e8e5a;
+    --verde-claro: #e6f4ea;
+    --ambar: #b9740a;
+    --ambar-claro: #fdf1e0;
     --rojo: #d93025;
-    --gris: #f4f5f7;
+    --rojo-claro: #fde8e6;
+    --gris: #f2f4f7;
+    --borde: #dde1e7;
     --texto: #1c1f26;
+    --texto-suave: #667085;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0;
     font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--gris);
     color: var(--texto);
+    line-height: 1.45;
   }
   header {
-    background: var(--azul-oscuro);
+    background: linear-gradient(135deg, var(--azul-oscuro), var(--azul));
     color: #fff;
-    padding: 16px 20px;
+    padding: 20px 20px 18px;
     text-align: center;
-    font-weight: 600;
-    font-size: 18px;
   }
-  .contenedor { max-width: 480px; margin: 0 auto; padding: 16px; }
+  header .titulo { font-weight: 700; font-size: 19px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  header .subtitulo { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+  .contenedor { max-width: 480px; margin: 0 auto; padding: 16px; padding-bottom: 40px; }
+
+  .paso-badge {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+    color: var(--azul); background: var(--azul-claro); padding: 5px 12px;
+    border-radius: 999px; margin-bottom: 10px;
+  }
+
   .tarjeta {
     background: #fff;
-    border-radius: 14px;
-    padding: 18px;
+    border-radius: 16px;
+    padding: 20px;
     margin-bottom: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 8px rgba(16,24,40,0.06);
   }
+
+  .instructivo {
+    font-size: 14px; color: var(--texto-suave); margin: 0 0 14px; line-height: 1.5;
+  }
+
   .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
   .tab-btn {
-    flex: 1; padding: 12px; border: none; border-radius: 10px;
-    background: #fff; color: var(--azul); font-weight: 600;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;
+    flex: 1; padding: 13px 8px; border: 2px solid var(--borde); border-radius: 12px;
+    background: #fff; color: var(--azul); font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
   }
-  .tab-btn.activo { background: var(--azul); color: #fff; }
-  #lector-camara { width: 100%; border-radius: 10px; overflow: hidden; }
+  .tab-btn.activo { background: var(--azul); color: #fff; border-color: var(--azul); }
+
+  #lector-camara { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 180px; }
+
   select, button, input {
-    width: 100%; padding: 12px; margin-top: 8px;
-    border-radius: 10px; border: 1px solid #d5d8de; font-size: 15px;
+    width: 100%; padding: 13px 14px; margin-top: 8px;
+    border-radius: 12px; border: 1.5px solid var(--borde); font-size: 16px;
+    font-family: inherit; color: var(--texto);
   }
-  input:disabled { background: #f0f1f3; color: #aaa; }
-  label { font-size: 13px; color: #666; margin-top: 12px; display: block; }
+  input:focus, select:focus { outline: none; border-color: var(--azul); }
+  input:disabled { background: #f3f4f6; color: #9aa1ab; }
+
+  label { font-size: 13px; font-weight: 600; color: var(--texto-suave); margin-top: 16px; display: block; }
+  label:first-of-type { margin-top: 0; }
+
+  button { cursor: pointer; font-weight: 600; transition: opacity 0.15s, transform 0.05s; }
+  button:active { transform: scale(0.98); }
+
   .btn-primario {
-    background: var(--azul); color: #fff; border: none; font-weight: 600;
-    margin-top: 16px; cursor: pointer;
+    background: var(--azul); color: #fff; border: none;
+    margin-top: 18px; padding: 15px; font-size: 16px; box-shadow: 0 2px 6px rgba(21,101,192,0.3);
   }
-  .btn-primario:disabled { background: #a9c3ea; }
+  .btn-primario:disabled { background: #b7c6da; box-shadow: none; }
+
+  .btn-secundario {
+    margin-top: 10px; background: #fff; color: var(--azul);
+    border: 1.5px solid var(--azul); padding: 13px;
+  }
+  .btn-terciario {
+    margin-top: 10px; background: #fff; color: var(--texto-suave);
+    border: 1.5px solid var(--borde); padding: 13px;
+  }
+  .btn-registro {
+    margin-top: 12px; background: var(--verde-claro); color: var(--verde);
+    border: 1.5px dashed var(--verde); padding: 13px;
+  }
+
   .estado-opciones { display: flex; gap: 8px; margin-top: 8px; }
   .estado-btn {
-    flex: 1; padding: 14px 6px; border-radius: 10px; border: 2px solid #d5d8de;
-    background: #fff; font-weight: 600; cursor: pointer; font-size: 13px;
+    flex: 1; padding: 16px 6px; border-radius: 12px; border: 2px solid var(--borde);
+    background: #fff; font-weight: 700; font-size: 13px; text-align: center;
   }
   .estado-btn.op { border-color: var(--verde); color: var(--verde); }
   .estado-btn.op.sel { background: var(--verde); color: #fff; }
-  .estado-btn.parcial { border-color: #d69618; color: #d69618; }
-  .estado-btn.parcial.sel { background: #d69618; color: #fff; }
+  .estado-btn.parcial { border-color: var(--ambar); color: var(--ambar); }
+  .estado-btn.parcial.sel { background: var(--ambar); color: #fff; }
   .estado-btn.inop { border-color: var(--rojo); color: var(--rojo); }
   .estado-btn.inop.sel { background: var(--rojo); color: #fff; }
-  .equipo-info { font-size: 14px; line-height: 1.6; }
+
+  .equipo-info {
+    font-size: 14px; line-height: 1.9; background: var(--azul-claro);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 6px;
+  }
+  .equipo-info .titulo-equipo { display: block; font-size: 16px; font-weight: 700; color: var(--azul-oscuro); margin-bottom: 6px; }
   .equipo-info b { color: var(--azul-oscuro); }
+  .equipo-info .fila-dato { color: var(--texto-suave); }
+  .equipo-info .fila-dato b { color: var(--texto); font-weight: 600; }
+
   .oculto { display: none !important; }
-  .mensaje { padding: 12px; border-radius: 10px; font-size: 14px; margin-top: 12px; }
-  .mensaje.error { background: #fde8e6; color: var(--rojo); }
-  .mensaje.exito { background: #e6f4ea; color: var(--verde); }
-  .opcional { color: #999; font-weight: 400; }
+
+  .mensaje { padding: 13px 14px; border-radius: 12px; font-size: 14px; margin-top: 12px; font-weight: 500; }
+  .mensaje.error { background: var(--rojo-claro); color: var(--rojo); }
+  .mensaje.exito { background: var(--verde-claro); color: var(--verde); }
+
+  .opcional { color: #9aa1ab; font-weight: 400; }
 
   /* Buscador tipo combobox */
   .combo { position: relative; }
   .combo-opciones {
-    position: absolute; z-index: 20; top: 100%; left: 0; right: 0;
-    background: #fff; border: 1px solid #d5d8de; border-top: none;
-    border-radius: 0 0 10px 10px; max-height: 220px; overflow-y: auto;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 2px;
+    background: #fff; border: 1.5px solid var(--borde);
+    border-radius: 12px; max-height: 240px; overflow-y: auto;
+    box-shadow: 0 6px 16px rgba(16,24,40,0.12);
   }
   .combo-opcion {
-    padding: 10px 12px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f1f3;
+    padding: 13px 14px; font-size: 14.5px; cursor: pointer; border-bottom: 1px solid #f0f1f3;
   }
   .combo-opcion:last-child { border-bottom: none; }
-  .combo-opcion:hover, .combo-opcion.activa { background: #eaf1fd; }
-  .combo-vacio { padding: 10px 12px; font-size: 14px; color: #999; }
+  .combo-opcion:hover, .combo-opcion.activa { background: var(--azul-claro); }
+  .combo-vacio { padding: 13px 14px; font-size: 14px; color: #9aa1ab; }
 </style>
 </head>
 <body>
 
-<header>🔧 Actualización de Equipos Biomédicos</header>
+<header>
+  <div class="titulo">🔧 Actualización de Equipos Biomédicos</div>
+  <div class="subtitulo">Escanea o busca el equipo, actualiza su estado y listo</div>
+</header>
 
 <div class="contenedor">
 
   <!-- Paso 1: identificar el equipo -->
   <div id="paso-buscar" class="tarjeta">
+    <span class="paso-badge">Paso 1 · Buscar equipo</span>
     <div class="tabs">
       <button class="tab-btn activo" id="tab-scan" onclick="cambiarTab('scan')">📷 Escanear código</button>
       <button class="tab-btn" id="tab-manual" onclick="cambiarTab('manual')">📋 Buscar manualmente</button>
     </div>
 
     <div id="vista-scan">
+      <p class="instructivo">Apunta la cámara al código de barras de la etiqueta del equipo. Cuando lo reconozca, presiona "Capturar y buscar".</p>
       <div id="lector-camara"></div>
       <div id="codigo-en-vivo" class="mensaje oculto"></div>
       <button id="btn-capturar" class="btn-primario" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
       <div id="msg-scan" class="mensaje oculto"></div>
-      <button id="btn-ir-registrar" class="oculto" style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
+      <button id="btn-ir-registrar" class="oculto btn-registro" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
     </div>
 
     <div id="vista-manual" class="oculto">
@@ -135,6 +196,7 @@
 
   <!-- Paso 2: confirmar equipo y actualizar -->
   <div id="paso-actualizar" class="tarjeta oculto">
+    <span class="paso-badge">Paso 2 · Actualizar equipo</span>
     <div class="equipo-info" id="info-equipo"></div>
 
     <label>Sede</label>
@@ -154,9 +216,9 @@
 
     <label>Estado del equipo</label>
     <div class="estado-opciones">
-      <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">Operativo</button>
-      <button class="estado-btn parcial" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE')">Parcial</button>
-      <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">Inoperativo</button>
+      <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">✅ Operativo</button>
+      <button class="estado-btn parcial" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE')">⚠️ Parcial</button>
+      <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">⛔ Inoperativo</button>
     </div>
 
     <label>Técnico</label>
@@ -316,10 +378,12 @@ function buscarPorCodigo(codigo, alTerminar) {
       document.getElementById('codigo-en-vivo').classList.add('oculto');
       ultimoCodigoDetectado = null;
       if (data.error) {
-        mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error');
         if (data.noEncontrado) {
+          mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error');
           codigoParaRegistrar = codigo;
           document.getElementById('btn-ir-registrar').classList.remove('oculto');
+        } else {
+          mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error');
         }
         if (alTerminar) setTimeout(alTerminar, 500);
       } else {
@@ -454,7 +518,7 @@ function mostrarEquipo(equipo) {
     Sede: ${equipo.sede}<br>
     Servicio: ${equipo.dependencia}<br>
     Vigencia del equipo: ${equipo.vigencia || 'S/D'}<br>
-    Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — ¡EXCEDIDA!' : ''}</b><br>
+    Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — EQUIPO EN OBSOLESCENCIA' : ''}</b><br>
     Estado actual: <b>${equipo.estadoActual}</b>
   `;
   document.getElementById('input-sede-editar').value = equipo.sede || '';
