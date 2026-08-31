@@ -106,6 +106,8 @@
 
     <div id="vista-scan">
       <div id="lector-camara"></div>
+      <div id="codigo-en-vivo" class="mensaje oculto"></div>
+      <button id="btn-capturar" class="btn-primario" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
       <div id="msg-scan" class="mensaje oculto"></div>
       <button id="btn-ir-registrar" class="oculto" style="margin-top:8px;background:#fff;color:var(--azul);border:2px solid var(--azul);" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
     </div>
@@ -274,6 +276,8 @@ function cambiarTab(tab) {
 /* ---------- Escáner de código de barras ---------- */
 let lectorIniciado = false;
 let lectorInstancia = null;
+let ultimoCodigoDetectado = null;
+
 function iniciarEscaner() {
   lectorIniciado = true;
   lectorInstancia = new Html5Qrcode('lector-camara');
@@ -281,11 +285,11 @@ function iniciarEscaner() {
     { facingMode: 'environment' },
     { fps: 10, qrbox: { width: 250, height: 120 } },
     (codigoDetectado) => {
-      lectorInstancia.pause(true);
-      mostrarMensaje('msg-scan', `Código detectado: "${codigoDetectado}" — buscando...`, 'exito');
-      buscarPorCodigo(codigoDetectado, () => {
-        try { lectorInstancia.resume(); } catch (e) {}
-      });
+      ultimoCodigoDetectado = codigoDetectado;
+      const aviso = document.getElementById('codigo-en-vivo');
+      aviso.textContent = `Código listo: "${codigoDetectado}" — presiona "Capturar y buscar"`;
+      aviso.className = 'mensaje exito';
+      document.getElementById('btn-capturar').disabled = false;
     },
     () => {}
   ).catch((err) => {
@@ -293,26 +297,40 @@ function iniciarEscaner() {
   });
 }
 
+function capturarCodigo() {
+  if (!ultimoCodigoDetectado) return;
+  const codigo = ultimoCodigoDetectado;
+  document.getElementById('btn-capturar').disabled = true;
+  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito');
+  if (lectorInstancia) { try { lectorInstancia.pause(true); } catch (e) {} }
+  buscarPorCodigo(codigo, () => {
+    if (lectorInstancia) { try { lectorInstancia.resume(); } catch (e) {} }
+    document.getElementById('btn-capturar').disabled = false;
+  });
+}
+
 function buscarPorCodigo(codigo, alTerminar) {
   fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigo)}`)
     .then(r => r.json())
     .then(data => {
+      document.getElementById('codigo-en-vivo').classList.add('oculto');
+      ultimoCodigoDetectado = null;
       if (data.error) {
-        mostrarMensaje('msg-scan', `Código detectado: "${codigo}" — ${data.error}`, 'error');
+        mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error');
         if (data.noEncontrado) {
           codigoParaRegistrar = codigo;
           document.getElementById('btn-ir-registrar').classList.remove('oculto');
         }
-        if (alTerminar) setTimeout(alTerminar, 2500);
+        if (alTerminar) setTimeout(alTerminar, 500);
       } else {
         document.getElementById('btn-ir-registrar').classList.add('oculto');
         mostrarEquipo(data);
-        if (alTerminar) setTimeout(alTerminar, 500); // reanuda la cámara en segundo plano
+        if (alTerminar) setTimeout(alTerminar, 300);
       }
     })
     .catch(() => {
       mostrarMensaje('msg-scan', 'Error de conexión.', 'error');
-      if (alTerminar) setTimeout(alTerminar, 2000);
+      if (alTerminar) setTimeout(alTerminar, 300);
     });
 }
 
@@ -320,6 +338,9 @@ function buscarPorCodigo(codigo, alTerminar) {
 function escanearOtro() {
   reiniciar();
   cambiarTab('scan');
+  ultimoCodigoDetectado = null;
+  document.getElementById('btn-capturar').disabled = true;
+  document.getElementById('codigo-en-vivo').classList.add('oculto');
   if (lectorInstancia) {
     try { lectorInstancia.resume(); } catch (e) {}
   }
