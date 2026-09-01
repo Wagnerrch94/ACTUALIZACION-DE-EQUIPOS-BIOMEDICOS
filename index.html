@@ -332,6 +332,9 @@
     <label>Descripción del equipo</label>
     <input type="text" id="reg-descripcion" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormularioRegistro()">
 
+    <label>Vigencia del equipo (años)</label>
+    <input type="number" id="reg-vigencia" placeholder="Ej: 10" min="0" step="1" oninput="validarFormularioRegistro()">
+
     <label>Sede</label>
     <div class="combo">
       <input type="text" id="reg-input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
@@ -757,6 +760,7 @@ function reiniciar() {
   document.getElementById('msg-scan').classList.add('oculto');
 
   document.getElementById('reg-descripcion').value = '';
+  document.getElementById('reg-vigencia').value = '';
   document.getElementById('reg-input-sede').value = '';
   document.getElementById('reg-servicio').value = '';
   document.getElementById('reg-marca').value = '';
@@ -819,10 +823,11 @@ function seleccionarEstadoRegistro(estado) {
 
 function validarFormularioRegistro() {
   const descripcion = document.getElementById('reg-descripcion').value.trim();
+  const vigencia = document.getElementById('reg-vigencia').value.trim();
   const tecnico = document.getElementById('reg-tecnico').value;
   const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoRegistroSeleccionado);
   const observacion = document.getElementById('reg-observacion').value.trim();
-  const valido = descripcion && tecnico && (!requiereObservacion || observacion);
+  const valido = descripcion && vigencia && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-registrar').disabled = !valido;
 }
 
@@ -841,6 +846,7 @@ function registrarEquipo() {
       codigoBarras: tipoCodigo === 'barras' ? codigo : '',
       codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
       descripcion: document.getElementById('reg-descripcion').value.trim(),
+      vigencia: document.getElementById('reg-vigencia').value.trim() ? document.getElementById('reg-vigencia').value.trim() + ' AÑOS' : '',
       sede: document.getElementById('reg-input-sede').value.trim(),
       servicio: document.getElementById('reg-servicio').value.trim(),
       marca: document.getElementById('reg-marca').value.trim(),
