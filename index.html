@@ -228,6 +228,10 @@
       <button id="btn-capturar" class="btn-primario oculto" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
       <div id="msg-scan" class="mensaje oculto"></div>
       <button id="btn-ir-registrar" class="oculto btn-registro" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
+
+      <label>¿No hay código de barras? Escribe el número a mano</label>
+      <input type="text" id="input-codigo-manual" placeholder="Ej: escrito con plumón en la etiqueta">
+      <button class="btn-secundario" onclick="buscarCodigoManual()">✍️ Buscar por este código</button>
     </div>
 
     <div id="vista-manual" class="oculto">
@@ -457,6 +461,16 @@ function capturarCodigo() {
     if (lectorInstancia) { try { lectorInstancia.resume(); } catch (e) {} }
     document.getElementById('btn-capturar').disabled = false;
   });
+}
+
+/** Para cuando no hay código de barras físico y el número está escrito a mano en la etiqueta */
+function buscarCodigoManual() {
+  const input = document.getElementById('input-codigo-manual');
+  const codigo = input.value.trim();
+  if (!codigo) return;
+  document.getElementById('btn-ir-registrar').classList.add('oculto');
+  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito', true);
+  buscarPorCodigo(codigo, () => { input.value = ''; });
 }
 
 function buscarPorCodigo(codigo, alTerminar) {
@@ -710,7 +724,7 @@ function guardarActualizacion() {
     .then(data => {
       if (data.exito) {
         mostrarMensaje('msg-guardar', '✅ Datos guardados exitosamente en la base de datos.', 'exito', true);
-        setTimeout(reiniciar, 2200);
+        setTimeout(volverAlInicio, 2200);
       } else {
         mostrarMensaje('msg-guardar', data.error || 'Error al guardar.', 'error');
         btn.disabled = false;
@@ -757,6 +771,27 @@ function reiniciar() {
   document.getElementById('paso-actualizar').classList.add('oculto');
   document.getElementById('paso-registrar').classList.add('oculto');
   document.getElementById('paso-buscar').classList.remove('oculto');
+}
+
+/** Después de guardar, regresa TODO al estado inicial de la app (pestaña de escaneo, sin búsquedas previas) */
+function volverAlInicio() {
+  reiniciar();
+  cambiarTab('scan');
+  sedeSeleccionada = '';
+  equiposTodos = [];
+  document.getElementById('input-sede').value = '';
+  document.getElementById('input-equipo').value = '';
+  document.getElementById('input-equipo').disabled = true;
+  document.getElementById('input-equipo').placeholder = 'Selecciona una sede primero';
+  document.getElementById('bloque-filtro').classList.add('oculto');
+  ultimoCodigoDetectado = null;
+  document.getElementById('btn-capturar').disabled = true;
+  document.getElementById('codigo-en-vivo').classList.add('oculto');
+  const inputManual = document.getElementById('input-codigo-manual');
+  if (inputManual) inputManual.value = '';
+  if (lectorInstancia) {
+    try { lectorInstancia.resume(); } catch (e) {}
+  }
 }
 
 /* ---------- Registrar equipo nuevo ---------- */
@@ -820,7 +855,7 @@ function registrarEquipo() {
     .then(data => {
       if (data.exito) {
         mostrarMensaje('msg-registrar', '✅ Equipo registrado exitosamente en la base de datos.', 'exito', true);
-        setTimeout(reiniciar, 2200);
+        setTimeout(volverAlInicio, 2200);
       } else {
         mostrarMensaje('msg-registrar', data.error || 'Error al registrar.', 'error');
         btn.disabled = false;
@@ -847,6 +882,22 @@ function mostrarMensaje(id, texto, tipo, persistente) {
 // La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
 // Las sedes sí se precargan en segundo plano para que "Buscar manualmente" abra ya listo.
 cargarSedes();
+
+/* Todo lo que el técnico escriba en estos campos se convierte a mayúscula automáticamente */
+function forzarMayusculas(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const inicio = el.selectionStart, fin = el.selectionEnd;
+    el.value = el.value.toUpperCase();
+    try { el.setSelectionRange(inicio, fin); } catch (e) {}
+  });
+}
+[
+  'input-marca', 'input-modelo', 'input-serie', 'input-sede-editar', 'input-servicio-editar', 'input-observacion',
+  'input-codigo-manual',
+  'reg-descripcion', 'reg-servicio', 'reg-marca', 'reg-modelo', 'reg-serie', 'reg-observacion',
+].forEach(forzarMayusculas);
 </script>
 
 </body>
