@@ -282,10 +282,16 @@
     <div class="ultima-actualizacion" id="bloque-ultima-actualizacion"></div>
 
     <label>Sede</label>
-    <input type="text" id="input-sede-editar">
+    <div class="combo">
+      <input type="text" id="input-sede-editar" placeholder="Escribe para buscar una sede..." autocomplete="off">
+      <div class="combo-opciones oculto" id="opciones-sede-editar"></div>
+    </div>
 
     <label>Servicio</label>
-    <input type="text" id="input-servicio-editar">
+    <div class="combo">
+      <input type="text" id="input-servicio-editar" placeholder="Escribe para buscar un servicio..." autocomplete="off">
+      <div class="combo-opciones oculto" id="opciones-servicio-editar"></div>
+    </div>
 
     <label>Marca</label>
     <input type="text" id="input-marca">
@@ -295,6 +301,9 @@
 
     <label>Serie</label>
     <input type="text" id="input-serie">
+
+    <label>Vigencia del equipo (años) <span class="opcional">corre sola; corrígela solo si está mal</span></label>
+    <input type="number" id="input-vigencia-editar" min="0" step="0.1">
 
     <label>Estado del equipo</label>
     <div class="estado-opciones">
@@ -348,8 +357,8 @@
     <label>Descripción del equipo</label>
     <input type="text" id="reg-descripcion" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormularioRegistro()">
 
-    <label>Vigencia del equipo (años)</label>
-    <input type="number" id="reg-vigencia" placeholder="Ej: 10" min="0" step="1" oninput="validarFormularioRegistro()">
+    <label>Vigencia del equipo (años) <span class="opcional">edad actual del equipo</span></label>
+    <input type="number" id="reg-vigencia" placeholder="Ej: 10" min="0" step="0.1" oninput="validarFormularioRegistro()">
 
     <label>Sede</label>
     <div class="combo">
@@ -420,6 +429,9 @@ let estadoRegistroSeleccionado = null;
 
 let sedesTodas = [];
 let equiposTodos = []; // { descripcion, marca, serie, ...datosCompletos }
+let serviciosEditar = []; // servicios disponibles para la sede que se está editando en Paso 2
+let vigenciaInicialEditar = null; // valor de vigencia mostrado al abrir el equipo (para saber si el técnico lo corrigió)
+let vigenciaCorriendoInicial = false; // si el equipo ya tenía fecha base de vigencia al abrirlo
 
 let sedeSeleccionada = '';
 
@@ -601,7 +613,6 @@ function seleccionarSede(sede) {
   cargarEquiposDeSede();
 }
 
-/** Atajo directo para revisar los equipos registrados bajo "SEDE PRINCIPAL" */
 /** Muestra los equipos que no tienen ningún establecimiento (Sede) asignado en la base */
 function irAEquiposSinEstablecimiento() {
   sedeSeleccionada = '(SIN ESTABLECIMIENTO)';
@@ -672,6 +683,26 @@ configurarCombo('input-equipo', 'opciones-equipo', () => equiposTodos,
 
 let origenBusqueda = 'scan';
 
+/* ---------- Combos de Sede y Servicio dentro del Paso 2 (actualizar) ---------- */
+configurarCombo('input-sede-editar', 'opciones-sede-editar', () => sedesTodas, (s) => s, (sede) => {
+  document.getElementById('input-sede-editar').value = sede;
+  cargarServiciosParaEditar(sede);
+});
+
+configurarCombo('input-servicio-editar', 'opciones-servicio-editar', () => serviciosEditar, (s) => s, (servicio) => {
+  document.getElementById('input-servicio-editar').value = servicio;
+});
+
+/** Trae la lista de servicios ya usados en una sede, para ofrecerlos como filtro al actualizar */
+function cargarServiciosParaEditar(sede) {
+  serviciosEditar = [];
+  if (!sede) return;
+  fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}`)
+    .then(r => r.json())
+    .then(data => { serviciosEditar = data.dependencias || []; })
+    .catch(() => { serviciosEditar = []; });
+}
+
 /* ---------- Mostrar equipo y actualizar ---------- */
 function mostrarEquipo(equipo) {
   equipoActual = equipo;
@@ -679,8 +710,8 @@ function mostrarEquipo(equipo) {
   document.getElementById('paso-actualizar').classList.remove('oculto');
   document.getElementById('btn-escanear-otro').classList.toggle('oculto', origenBusqueda !== 'scan');
   document.getElementById('btn-buscar-otro').classList.toggle('oculto', origenBusqueda !== 'manual');
-  const añosVigencia = parseInt((equipo.vigencia || '').toString().match(/(\d+)\s*A/i)?.[1] || '', 10);
-  const vidaUtilExcedida = !isNaN(añosVigencia) && equipo.vidaUtil !== null && equipo.vidaUtil !== undefined && añosVigencia >= equipo.vidaUtil;
+
+  const vidaUtilExcedida = !!equipo.vidaUtilExcedida;
   const textoVidaUtil = equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo';
 
   document.getElementById('info-equipo').innerHTML = `
@@ -689,7 +720,7 @@ function mostrarEquipo(equipo) {
     <div class="fila-dato">Código de Barras: <b>${equipo.codigoBarras || 'S/D'}</b></div>
     <div class="fila-dato">Sede: <b>${equipo.sede}</b></div>
     <div class="fila-dato">Servicio: <b>${equipo.dependencia}</b></div>
-    <div class="fila-dato">Vigencia del equipo: <b>${equipo.vigencia || 'S/D'}</b></div>
+    <div class="fila-dato">Vigencia del equipo: <b>${equipo.vigenciaTexto || 'S/D'}</b></div>
     <div class="fila-dato">Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — EQUIPO EN OBSOLESCENCIA' : ''}</b></div>
     <div class="fila-dato">Estado actual: <b>${equipo.estadoActual}</b></div>
   `;
@@ -713,6 +744,16 @@ function mostrarEquipo(equipo) {
   document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
   document.getElementById('input-modelo').value = (equipo.modelo && equipo.modelo !== 'SIN MODELO') ? equipo.modelo : '';
   document.getElementById('input-serie').value = (equipo.serie && equipo.serie !== 'SIN SERIE') ? equipo.serie : '';
+
+  // Precarga los servicios ya usados en la sede del equipo, para que el combo de Servicio funcione de inmediato
+  cargarServiciosParaEditar(equipo.sede);
+
+  // Vigencia: se muestra redondeada a 1 decimal; se recuerda el valor inicial para saber si el técnico la corrigió
+  const vigenciaMostrada = (equipo.vigenciaAnios !== null && equipo.vigenciaAnios !== undefined)
+    ? Math.round(equipo.vigenciaAnios * 10) / 10 : '';
+  document.getElementById('input-vigencia-editar').value = vigenciaMostrada;
+  vigenciaInicialEditar = vigenciaMostrada === '' ? null : vigenciaMostrada;
+  vigenciaCorriendoInicial = !!equipo.vigenciaCorriendo;
 }
 
 function seleccionarEstado(estado) {
@@ -738,6 +779,15 @@ function guardarActualizacion() {
   btn.disabled = true;
   btn.textContent = 'Guardando...';
 
+  // La vigencia solo se reenvía si el técnico la corrigió, o si el equipo todavía no tenía
+  // fecha base (equipos antiguos): así se "activa" para que empiece a correr sola.
+  const vigenciaInputVal = document.getElementById('input-vigencia-editar').value.trim();
+  const vigenciaNum = vigenciaInputVal === '' ? NaN : parseFloat(vigenciaInputVal);
+  const vigenciaFueCorregida = !isNaN(vigenciaNum) &&
+    (vigenciaInicialEditar === null || Math.abs(vigenciaNum - vigenciaInicialEditar) > 0.05);
+  const vigenciaDebeActivarse = !isNaN(vigenciaNum) && !vigenciaCorriendoInicial;
+  const vigenciaAEnviar = (vigenciaFueCorregida || vigenciaDebeActivarse) ? vigenciaNum : '';
+
   fetch(API_URL, {
     method: 'POST',
     body: JSON.stringify({
@@ -752,6 +802,7 @@ function guardarActualizacion() {
       marca: document.getElementById('input-marca').value.trim(),
       modelo: document.getElementById('input-modelo').value.trim(),
       serie: document.getElementById('input-serie').value.trim(),
+      vigenciaAnios: vigenciaAEnviar,
     }),
   })
     .then(r => r.json())
@@ -777,12 +828,16 @@ function reiniciar() {
   estadoSeleccionado = null;
   codigoParaRegistrar = '';
   estadoRegistroSeleccionado = null;
+  serviciosEditar = [];
+  vigenciaInicialEditar = null;
+  vigenciaCorriendoInicial = false;
   document.getElementById('select-tecnico').value = '';
   document.getElementById('input-sede-editar').value = '';
   document.getElementById('input-servicio-editar').value = '';
   document.getElementById('input-marca').value = '';
   document.getElementById('input-modelo').value = '';
   document.getElementById('input-serie').value = '';
+  document.getElementById('input-vigencia-editar').value = '';
   document.getElementById('input-observacion').value = '';
   document.getElementById('campo-observacion').classList.add('oculto');
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
@@ -859,7 +914,7 @@ function validarFormularioRegistro() {
   const tecnico = document.getElementById('reg-tecnico').value;
   const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoRegistroSeleccionado);
   const observacion = document.getElementById('reg-observacion').value.trim();
-  const valido = descripcion && vigencia && tecnico && (!requiereObservacion || observacion);
+  const valido = descripcion && vigencia !== '' && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-registrar').disabled = !valido;
 }
 
@@ -878,7 +933,7 @@ function registrarEquipo() {
       codigoBarras: tipoCodigo === 'barras' ? codigo : '',
       codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
       descripcion: document.getElementById('reg-descripcion').value.trim(),
-      vigencia: document.getElementById('reg-vigencia').value.trim() ? document.getElementById('reg-vigencia').value.trim() + ' AÑOS' : '',
+      vigenciaAnios: document.getElementById('reg-vigencia').value.trim(),
       sede: document.getElementById('reg-input-sede').value.trim(),
       servicio: document.getElementById('reg-servicio').value.trim(),
       marca: document.getElementById('reg-marca').value.trim(),
