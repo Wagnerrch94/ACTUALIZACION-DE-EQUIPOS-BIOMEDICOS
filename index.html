@@ -302,8 +302,9 @@
     <label>Serie</label>
     <input type="text" id="input-serie">
 
-    <label>Vigencia del equipo (años) <span class="opcional">corre sola; corrígela solo si está mal</span></label>
-    <input type="number" id="input-vigencia-editar" min="0" step="0.1">
+    <label>Fecha de alta del equipo <span class="opcional">corrígela solo si está mal</span></label>
+    <input type="date" id="input-fecha-alta-editar" oninput="calcularVigenciaPreviewEditar()" onchange="calcularVigenciaPreviewEditar()">
+    <div id="vigencia-preview-editar" class="mensaje oculto"></div>
 
     <label>Estado del equipo</label>
     <div class="estado-opciones">
@@ -357,8 +358,9 @@
     <label>Descripción del equipo</label>
     <input type="text" id="reg-descripcion" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormularioRegistro()">
 
-    <label>Vigencia del equipo (años) <span class="opcional">edad actual del equipo</span></label>
-    <input type="number" id="reg-vigencia" placeholder="Ej: 10" min="0" step="0.1" oninput="validarFormularioRegistro()">
+    <label>Fecha de alta del equipo</label>
+    <input type="date" id="reg-fecha-alta" oninput="calcularVigenciaPreviewRegistro(); validarFormularioRegistro();" onchange="calcularVigenciaPreviewRegistro(); validarFormularioRegistro();">
+    <div id="reg-vigencia-preview" class="mensaje oculto"></div>
 
     <label>Sede</label>
     <div class="combo">
@@ -430,8 +432,6 @@ let estadoRegistroSeleccionado = null;
 let sedesTodas = [];
 let equiposTodos = []; // { descripcion, marca, serie, ...datosCompletos }
 let serviciosEditar = []; // servicios disponibles para la sede que se está editando en Paso 2
-let vigenciaInicialEditar = null; // valor de vigencia mostrado al abrir el equipo (para saber si el técnico lo corrigió)
-let vigenciaCorriendoInicial = false; // si el equipo ya tenía fecha base de vigencia al abrirlo
 
 let sedeSeleccionada = '';
 
@@ -481,9 +481,19 @@ function iniciarEscaner() {
   });
 }
 
+/** Si el código es puramente numérico, quita los ceros a la izquierda (029777 -> 29777).
+ *  Los códigos con letras u otros caracteres se dejan tal cual. El backend también
+ *  normaliza al buscar; esto es solo para que lo que se muestra en pantalla ya venga limpio. */
+function limpiarCerosIzquierda(codigo) {
+  if (!codigo) return codigo;
+  let limpio = codigo.toString().trim();
+  if (/^\d+$/.test(limpio)) limpio = limpio.replace(/^0+(?=\d)/, '');
+  return limpio;
+}
+
 function capturarCodigo() {
   if (!ultimoCodigoDetectado) return;
-  const codigo = ultimoCodigoDetectado;
+  const codigo = limpiarCerosIzquierda(ultimoCodigoDetectado);
   document.getElementById('btn-capturar').disabled = true;
   document.getElementById('btn-ir-registrar').classList.add('oculto');
   mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito', true);
@@ -497,7 +507,7 @@ function capturarCodigo() {
 /** Para cuando no hay código de barras físico y el número está escrito a mano en la etiqueta */
 function buscarCodigoManual() {
   const input = document.getElementById('input-codigo-manual');
-  const codigo = input.value.trim();
+  const codigo = limpiarCerosIzquierda(input.value.trim());
   if (!codigo) return;
   document.getElementById('btn-ir-registrar').classList.add('oculto');
   mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito', true);
@@ -703,6 +713,43 @@ function cargarServiciosParaEditar(sede) {
     .catch(() => { serviciosEditar = []; });
 }
 
+/* ---------- Vigencia en vivo (vista previa mientras se elige la fecha de alta) ---------- */
+function calcularVigenciaTextoDesde(valorFecha) {
+  // valorFecha viene como "AAAA-MM-DD" de un <input type="date">
+  if (!valorFecha) return null;
+  const partes = valorFecha.split('-').map(Number);
+  const fecha = new Date(partes[0], partes[1] - 1, partes[2]);
+  const hoy = new Date();
+  if (isNaN(fecha.getTime()) || fecha > hoy) return { error: true };
+
+  let años = hoy.getFullYear() - fecha.getFullYear();
+  let meses = hoy.getMonth() - fecha.getMonth();
+  if (hoy.getDate() < fecha.getDate()) meses--;
+  if (meses < 0) { años--; meses += 12; }
+  return { años, meses };
+}
+
+function calcularVigenciaPreviewRegistro() {
+  mostrarVigenciaPreview('reg-fecha-alta', 'reg-vigencia-preview');
+}
+function calcularVigenciaPreviewEditar() {
+  mostrarVigenciaPreview('input-fecha-alta-editar', 'vigencia-preview-editar');
+}
+function mostrarVigenciaPreview(inputId, previewId) {
+  const el = document.getElementById(previewId);
+  const valor = document.getElementById(inputId).value;
+  if (!valor) { el.classList.add('oculto'); return; }
+  const resultado = calcularVigenciaTextoDesde(valor);
+  if (!resultado || resultado.error) {
+    el.textContent = '⚠️ La fecha de alta no puede ser posterior a hoy.';
+    el.className = 'mensaje error';
+  } else {
+    el.textContent = `📅 Vigencia calculada: ${resultado.años} años ${resultado.meses} meses`;
+    el.className = 'mensaje exito';
+  }
+  el.classList.remove('oculto');
+}
+
 /* ---------- Mostrar equipo y actualizar ---------- */
 function mostrarEquipo(equipo) {
   equipoActual = equipo;
@@ -748,12 +795,11 @@ function mostrarEquipo(equipo) {
   // Precarga los servicios ya usados en la sede del equipo, para que el combo de Servicio funcione de inmediato
   cargarServiciosParaEditar(equipo.sede);
 
-  // Vigencia: se muestra redondeada a 1 decimal; se recuerda el valor inicial para saber si el técnico la corrigió
-  const vigenciaMostrada = (equipo.vigenciaAnios !== null && equipo.vigenciaAnios !== undefined)
-    ? Math.round(equipo.vigenciaAnios * 10) / 10 : '';
-  document.getElementById('input-vigencia-editar').value = vigenciaMostrada;
-  vigenciaInicialEditar = vigenciaMostrada === '' ? null : vigenciaMostrada;
-  vigenciaCorriendoInicial = !!equipo.vigenciaCorriendo;
+  // Fecha de alta: se precarga con la que ya tiene el equipo (equipo.fechaAltaISO = "AAAA-MM-DD")
+  const inputFechaAlta = document.getElementById('input-fecha-alta-editar');
+  inputFechaAlta.value = equipo.fechaAltaISO || '';
+  inputFechaAlta.max = new Date().toISOString().split('T')[0];
+  calcularVigenciaPreviewEditar();
 }
 
 function seleccionarEstado(estado) {
@@ -779,15 +825,6 @@ function guardarActualizacion() {
   btn.disabled = true;
   btn.textContent = 'Guardando...';
 
-  // La vigencia solo se reenvía si el técnico la corrigió, o si el equipo todavía no tenía
-  // fecha base (equipos antiguos): así se "activa" para que empiece a correr sola.
-  const vigenciaInputVal = document.getElementById('input-vigencia-editar').value.trim();
-  const vigenciaNum = vigenciaInputVal === '' ? NaN : parseFloat(vigenciaInputVal);
-  const vigenciaFueCorregida = !isNaN(vigenciaNum) &&
-    (vigenciaInicialEditar === null || Math.abs(vigenciaNum - vigenciaInicialEditar) > 0.05);
-  const vigenciaDebeActivarse = !isNaN(vigenciaNum) && !vigenciaCorriendoInicial;
-  const vigenciaAEnviar = (vigenciaFueCorregida || vigenciaDebeActivarse) ? vigenciaNum : '';
-
   fetch(API_URL, {
     method: 'POST',
     body: JSON.stringify({
@@ -802,7 +839,7 @@ function guardarActualizacion() {
       marca: document.getElementById('input-marca').value.trim(),
       modelo: document.getElementById('input-modelo').value.trim(),
       serie: document.getElementById('input-serie').value.trim(),
-      vigenciaAnios: vigenciaAEnviar,
+      fechaAlta: document.getElementById('input-fecha-alta-editar').value,
     }),
   })
     .then(r => r.json())
@@ -829,15 +866,14 @@ function reiniciar() {
   codigoParaRegistrar = '';
   estadoRegistroSeleccionado = null;
   serviciosEditar = [];
-  vigenciaInicialEditar = null;
-  vigenciaCorriendoInicial = false;
   document.getElementById('select-tecnico').value = '';
   document.getElementById('input-sede-editar').value = '';
   document.getElementById('input-servicio-editar').value = '';
   document.getElementById('input-marca').value = '';
   document.getElementById('input-modelo').value = '';
   document.getElementById('input-serie').value = '';
-  document.getElementById('input-vigencia-editar').value = '';
+  document.getElementById('input-fecha-alta-editar').value = '';
+  document.getElementById('vigencia-preview-editar').classList.add('oculto');
   document.getElementById('input-observacion').value = '';
   document.getElementById('campo-observacion').classList.add('oculto');
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
@@ -847,7 +883,8 @@ function reiniciar() {
   document.getElementById('bloque-ultima-actualizacion').innerHTML = '';
 
   document.getElementById('reg-descripcion').value = '';
-  document.getElementById('reg-vigencia').value = '';
+  document.getElementById('reg-fecha-alta').value = '';
+  document.getElementById('reg-vigencia-preview').classList.add('oculto');
   document.getElementById('reg-input-sede').value = '';
   document.getElementById('reg-servicio').value = '';
   document.getElementById('reg-marca').value = '';
@@ -910,11 +947,12 @@ function seleccionarEstadoRegistro(estado) {
 
 function validarFormularioRegistro() {
   const descripcion = document.getElementById('reg-descripcion').value.trim();
-  const vigencia = document.getElementById('reg-vigencia').value.trim();
+  const fechaAlta = document.getElementById('reg-fecha-alta').value;
+  const fechaAltaValida = fechaAlta && new Date(fechaAlta) <= new Date();
   const tecnico = document.getElementById('reg-tecnico').value;
   const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoRegistroSeleccionado);
   const observacion = document.getElementById('reg-observacion').value.trim();
-  const valido = descripcion && vigencia !== '' && tecnico && (!requiereObservacion || observacion);
+  const valido = descripcion && fechaAltaValida && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-registrar').disabled = !valido;
 }
 
@@ -933,7 +971,7 @@ function registrarEquipo() {
       codigoBarras: tipoCodigo === 'barras' ? codigo : '',
       codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
       descripcion: document.getElementById('reg-descripcion').value.trim(),
-      vigenciaAnios: document.getElementById('reg-vigencia').value.trim(),
+      fechaAlta: document.getElementById('reg-fecha-alta').value,
       sede: document.getElementById('reg-input-sede').value.trim(),
       servicio: document.getElementById('reg-servicio').value.trim(),
       marca: document.getElementById('reg-marca').value.trim(),
@@ -975,6 +1013,13 @@ function mostrarMensaje(id, texto, tipo, persistente) {
 // La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
 // Las sedes sí se precargan en segundo plano para que "Buscar manualmente" abra ya listo.
 cargarSedes();
+
+// Ninguna fecha de alta puede ser futura
+(function limitarFechasAHoy() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const regFecha = document.getElementById('reg-fecha-alta');
+  if (regFecha) regFecha.max = hoy;
+})();
 
 /* Todo lo que el técnico escriba en estos campos se convierte a mayúscula automáticamente */
 function forzarMayusculas(id) {
