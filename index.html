@@ -164,6 +164,19 @@
   .equipo-info .fila-dato { color: var(--texto-suave); }
   .equipo-info .fila-dato b { color: var(--texto); font-weight: 600; }
 
+  /* Bloque de "última actualización registrada" (historial más reciente del equipo) */
+  .ultima-actualizacion {
+    font-size: 13px; line-height: 1.65; background: var(--ambar-claro);
+    border: 1px solid #f0dfb0; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px;
+  }
+  .ultima-actualizacion .titulo-bloque {
+    display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.03em; color: var(--ambar); margin-bottom: 6px;
+  }
+  .ultima-actualizacion b { color: var(--texto); }
+  .ultima-actualizacion .obs { display: block; margin-top: 4px; color: var(--texto-suave); }
+  .ultima-actualizacion.sin-datos { background: var(--fondo); border-color: var(--borde); color: #9aa6a5; font-style: italic; }
+
   .oculto { display: none !important; }
 
   .mensaje { padding: 12px 14px; border-radius: 10px; font-size: 13.5px; margin-top: 12px; font-weight: 500; }
@@ -264,6 +277,9 @@
   <div id="paso-actualizar" class="tarjeta oculto">
     <span class="paso-badge">Paso 2 · Actualizar equipo</span>
     <div class="equipo-info" id="info-equipo"></div>
+
+    <!-- Última actualización registrada para este equipo (fecha, técnico y observación) -->
+    <div class="ultima-actualizacion" id="bloque-ultima-actualizacion"></div>
 
     <label>Sede</label>
     <input type="text" id="input-sede-editar">
@@ -677,6 +693,21 @@ function mostrarEquipo(equipo) {
     <div class="fila-dato">Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — EQUIPO EN OBSOLESCENCIA' : ''}</b></div>
     <div class="fila-dato">Estado actual: <b>${equipo.estadoActual}</b></div>
   `;
+
+  // --- Bloque de última actualización registrada (historial más reciente, no acumulado) ---
+  const bloqueActualizacion = document.getElementById('bloque-ultima-actualizacion');
+  if (equipo.fechaUltimaActualizacion) {
+    bloqueActualizacion.classList.remove('sin-datos');
+    bloqueActualizacion.innerHTML = `
+      <span class="titulo-bloque">🕓 Última actualización registrada</span>
+      <b>${equipo.fechaUltimaActualizacion}</b>${equipo.ultimoTecnico ? ' — ' + equipo.ultimoTecnico : ''}
+      ${equipo.ultimaObservacion ? `<span class="obs">📝 Observación: ${equipo.ultimaObservacion}</span>` : ''}
+    `;
+  } else {
+    bloqueActualizacion.classList.add('sin-datos');
+    bloqueActualizacion.innerHTML = '🕓 Este equipo aún no registra actualizaciones previas en el sistema.';
+  }
+
   document.getElementById('input-sede-editar').value = equipo.sede || '';
   document.getElementById('input-servicio-editar').value = equipo.dependencia || '';
   document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
@@ -758,6 +789,7 @@ function reiniciar() {
   document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
   document.getElementById('btn-ir-registrar').classList.add('oculto');
   document.getElementById('msg-scan').classList.add('oculto');
+  document.getElementById('bloque-ultima-actualizacion').innerHTML = '';
 
   document.getElementById('reg-descripcion').value = '';
   document.getElementById('reg-vigencia').value = '';
