@@ -200,6 +200,15 @@
   .combo-opcion:last-child { border-bottom: none; }
   .combo-opcion:hover, .combo-opcion.activa { background: var(--primario-claro); }
   .combo-vacio { padding: 12px 14px; font-size: 13.5px; color: #9aa6a5; }
+
+  /* Tarjeta de % de equipos actualizados (pantalla inicial) */
+  .tarjeta-stats { padding: 16px 20px; }
+  .stats-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .stats-label { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: var(--texto-suave); }
+  .stats-porcentaje { font-family: "Sora", sans-serif; font-size: 22px; font-weight: 800; color: var(--primario); }
+  .stats-barra { width: 100%; height: 8px; border-radius: 6px; background: var(--fondo); overflow: hidden; }
+  .stats-barra-relleno { height: 100%; width: 0%; background: var(--primario); border-radius: 6px; transition: width 0.4s ease; }
+  .stats-detalle { margin-top: 6px; font-size: 12px; color: var(--texto-suave); }
 </style>
 </head>
 <body>
@@ -225,6 +234,16 @@
 </header>
 
 <div class="contenedor">
+
+  <!-- % global de equipos actualizados (siempre visible en la pantalla inicial) -->
+  <div class="tarjeta tarjeta-stats" id="tarjeta-stats">
+    <div class="stats-header">
+      <span class="stats-label">📊 Equipos actualizados</span>
+      <span class="stats-porcentaje" id="stats-porcentaje">—</span>
+    </div>
+    <div class="stats-barra"><div class="stats-barra-relleno" id="stats-barra-relleno"></div></div>
+    <div class="stats-detalle" id="stats-detalle">Cargando...</div>
+  </div>
 
   <!-- Paso 1: identificar el equipo -->
   <div id="paso-buscar" class="tarjeta">
@@ -921,6 +940,7 @@ function volverAlInicio() {
   if (lectorInstancia) {
     try { lectorInstancia.resume(); } catch (e) {}
   }
+  cargarEstadisticas(); // el equipo recién guardado puede haber cambiado el % global
 }
 
 /* ---------- Registrar equipo nuevo ---------- */
@@ -1014,6 +1034,26 @@ function mostrarMensaje(id, texto, tipo, persistente) {
 // La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
 // Las sedes sí se precargan en segundo plano para que "Buscar manualmente" abra ya listo.
 cargarSedes();
+cargarEstadisticas();
+
+/** Trae y pinta el % global de equipos con al menos una actualización registrada */
+function cargarEstadisticas() {
+  fetch(`${API_URL}?accion=estadisticas`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        document.getElementById('stats-detalle').textContent = 'No se pudo cargar el porcentaje.';
+        return;
+      }
+      document.getElementById('stats-porcentaje').textContent = data.porcentaje + '%';
+      document.getElementById('stats-barra-relleno').style.width = Math.min(data.porcentaje, 100) + '%';
+      document.getElementById('stats-detalle').textContent =
+        `${data.actualizados} de ${data.totalEquipos} equipos con al menos una actualización registrada`;
+    })
+    .catch(() => {
+      document.getElementById('stats-detalle').textContent = 'Error de conexión al cargar el porcentaje.';
+    });
+}
 
 // Ninguna fecha de alta puede ser futura
 (function limitarFechasAHoy() {
