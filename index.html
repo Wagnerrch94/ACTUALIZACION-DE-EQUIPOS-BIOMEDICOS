@@ -438,10 +438,16 @@
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
 
-/** Fuerza una recarga real de la página, sin usar nada guardado en caché del WebView */
+/** Fuerza una recarga real: primero le pide al servidor que limpie su caché de equipos
+ *  (por si quedó desactualizada), y recién después recarga la página sin usar nada
+ *  guardado en caché del WebView. */
 function recargarApp() {
-  const url = window.location.pathname + '?v=' + Date.now();
-  window.location.href = url;
+  fetch(`${API_URL}?accion=limpiarCache&_ts=${Date.now()}`, { cache: 'no-store' })
+    .catch(() => {}) // si falla la llamada, igual recargamos la página
+    .finally(() => {
+      const url = window.location.pathname + '?v=' + Date.now();
+      window.location.href = url;
+    });
 }
 
 let equipoActual = null;
@@ -535,7 +541,7 @@ function buscarCodigoManual() {
 }
 
 function buscarPorCodigo(codigo, alTerminar) {
-  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigo)}`)
+  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigo)}&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       document.getElementById('codigo-en-vivo').classList.add('oculto');
@@ -621,7 +627,7 @@ function configurarCombo(inputId, opcionesId, obtenerLista, obtenerEtiqueta, alS
 /* ---------- Carga de datos ---------- */
 function cargarSedes() {
   if (sedesTodas.length > 0) return; // ya están cargadas
-  fetch(`${API_URL}?accion=listarSedes`)
+  fetch(`${API_URL}?accion=listarSedes&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       sedesTodas = data.sedes || [];
@@ -653,7 +659,7 @@ function irAEquiposSinEstablecimiento() {
   document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
 
   const inputEquipo = document.getElementById('input-equipo');
-  fetch(`${API_URL}?accion=listarEquiposSinSede`)
+  fetch(`${API_URL}?accion=listarEquiposSinSede&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       equiposTodos = data.equipos || [];
@@ -669,7 +675,7 @@ function irAEquiposSinEstablecimiento() {
 function cargarEquiposDeSede() {
   if (!sedeSeleccionada) return;
   const inputEquipo = document.getElementById('input-equipo');
-  fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}`)
+  fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
@@ -727,7 +733,7 @@ configurarCombo('input-servicio-editar', 'opciones-servicio-editar', () => servi
 function cargarServiciosParaEditar(sede) {
   serviciosEditar = [];
   if (!sede) return;
-  fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}`)
+  fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => { serviciosEditar = data.dependencias || []; })
     .catch(() => { serviciosEditar = []; });
@@ -847,6 +853,7 @@ function guardarActualizacion() {
 
   fetch(API_URL, {
     method: 'POST',
+    cache: 'no-store',
     body: JSON.stringify({
       fila: equipoActual.fila,
       codigoBarras: equipoActual.codigoBarras,
@@ -987,6 +994,7 @@ function registrarEquipo() {
 
   fetch(API_URL, {
     method: 'POST',
+    cache: 'no-store',
     body: JSON.stringify({
       accion: 'registrar',
       codigoBarras: tipoCodigo === 'barras' ? codigo : '',
@@ -1038,7 +1046,7 @@ cargarEstadisticas();
 
 /** Trae y pinta el % global de equipos con al menos una actualización registrada */
 function cargarEstadisticas() {
-  fetch(`${API_URL}?accion=estadisticas`)
+  fetch(`${API_URL}?accion=estadisticas&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
