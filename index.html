@@ -273,7 +273,6 @@
         <input type="text" id="input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
         <div class="combo-opciones oculto" id="opciones-sede"></div>
       </div>
-      <button type="button" class="btn-secundario" onclick="irAEquiposSinEstablecimiento()">📋 Equipos sin establecimiento</button>
 
       <div id="bloque-filtro" class="oculto">
         <label>¿Cómo deseas buscar el equipo?</label>
@@ -289,6 +288,8 @@
           <input type="text" id="input-equipo" placeholder="Cargando equipos..." autocomplete="off" disabled>
           <div class="combo-opciones oculto" id="opciones-equipo"></div>
         </div>
+
+        <button type="button" class="btn-registro" onclick="abrirRegistroDesdeManual()">➕ No lo encuentro, registrar equipo nuevo</button>
       </div>
     </div>
   </div>
@@ -366,8 +367,8 @@
     <span class="paso-badge">Registrar equipo nuevo</span>
     <p class="instructivo">Completa los datos que tengas a la mano. Los que no conozcas los puedes dejar en blanco.</p>
 
-    <label>Código escaneado</label>
-    <input type="text" id="reg-codigo" readonly>
+    <label>Código <span class="opcional" id="reg-codigo-opcional">(déjalo en blanco si no tiene código de barras ni patrimonial)</span></label>
+    <input type="text" id="reg-codigo" placeholder="Escribe el código si lo tienes">
 
     <label>Este código es...</label>
     <select id="reg-tipo-codigo">
@@ -649,28 +650,6 @@ function seleccionarSede(sede) {
   cargarEquiposDeSede();
 }
 
-/** Muestra los equipos que no tienen ningún establecimiento (Sede) asignado en la base */
-function irAEquiposSinEstablecimiento() {
-  sedeSeleccionada = '(SIN ESTABLECIMIENTO)';
-  document.getElementById('input-sede').value = '(Equipos sin establecimiento)';
-  document.getElementById('bloque-filtro').classList.remove('oculto');
-  document.getElementById('input-equipo').value = '';
-  document.getElementById('input-equipo').disabled = true;
-  document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
-
-  const inputEquipo = document.getElementById('input-equipo');
-  fetch(`${API_URL}?accion=listarEquiposSinSede&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      equiposTodos = data.equipos || [];
-      inputEquipo.disabled = false;
-      inputEquipo.placeholder = equiposTodos.length > 0
-        ? textoPlaceholderFiltro(campoFiltroEquipo)
-        : 'No hay equipos sin establecimiento';
-    })
-    .catch(() => { inputEquipo.placeholder = 'Error de conexión — intenta de nuevo'; });
-}
-
 /** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador) */
 function cargarEquiposDeSede() {
   if (!sedeSeleccionada) return;
@@ -909,6 +888,7 @@ function reiniciar() {
   document.getElementById('msg-scan').classList.add('oculto');
   document.getElementById('bloque-ultima-actualizacion').innerHTML = '';
 
+  document.getElementById('reg-codigo').value = '';
   document.getElementById('reg-descripcion').value = '';
   document.getElementById('reg-fecha-alta').value = '';
   document.getElementById('reg-vigencia-preview').classList.add('oculto');
@@ -955,11 +935,28 @@ configurarCombo('reg-input-sede', 'reg-opciones-sede', () => sedesTodas, (s) => 
   document.getElementById('reg-input-sede').value = sede;
 });
 
+/** Abre el registro desde el flujo de escaneo (ya trae un código detectado que no existe en la BBDD) */
 function abrirRegistro() {
   document.getElementById('paso-buscar').classList.add('oculto');
   document.getElementById('paso-registrar').classList.remove('oculto');
   document.getElementById('reg-codigo').value = codigoParaRegistrar;
+  document.getElementById('reg-codigo-opcional').textContent = '';
   if (sedesTodas.length === 0) cargarSedes();
+}
+
+/** Abre el registro desde la búsqueda manual, cuando el equipo tampoco aparece en el listado
+ *  de la sede elegida. No hay código detectado, así que el campo queda vacío y editable
+ *  (el técnico puede escribirlo si lo tiene a la mano, o dejarlo en blanco). */
+function abrirRegistroDesdeManual() {
+  codigoParaRegistrar = '';
+  document.getElementById('paso-buscar').classList.add('oculto');
+  document.getElementById('paso-registrar').classList.remove('oculto');
+  document.getElementById('reg-codigo').value = '';
+  document.getElementById('reg-codigo-opcional').textContent = '(déjalo en blanco si no tiene código de barras ni patrimonial)';
+  if (sedesTodas.length === 0) cargarSedes();
+  if (sedeSeleccionada) {
+    document.getElementById('reg-input-sede').value = sedeSeleccionada;
+  }
 }
 
 function seleccionarEstadoRegistro(estado) {
@@ -1082,7 +1079,7 @@ function forzarMayusculas(id) {
 }
 [
   'input-marca', 'input-modelo', 'input-serie', 'input-sede-editar', 'input-servicio-editar', 'input-observacion',
-  'input-codigo-manual',
+  'input-codigo-manual', 'reg-codigo',
   'reg-descripcion', 'reg-servicio', 'reg-marca', 'reg-modelo', 'reg-serie', 'reg-observacion',
 ].forEach(forzarMayusculas);
 </script>
