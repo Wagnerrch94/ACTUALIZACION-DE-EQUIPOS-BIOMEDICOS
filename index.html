@@ -738,11 +738,13 @@ let origenBusqueda = 'scan';
 /* ---------- Búsqueda global (en TODOS los establecimientos a la vez) ---------- */
 
 /** Trae la lista completa de equipos de la base, sin filtrar por sede. Se pide una sola vez
- *  por carga de página; el filtro por serie/marca/modelo/descripción se hace en el buscador. */
+ *  por carga de página; el filtro por serie/marca/modelo/descripción se hace en el buscador.
+ *  Usa la versión liviana del backend (sin calcular vigencia/vida útil de cada equipo) para
+ *  que cargue rápido aunque la red tenga miles de equipos. */
 function cargarEquiposGlobal() {
   if (equiposTodosGlobal.length > 0) return; // ya está cargada
   const inputEquipoGlobal = document.getElementById('input-equipo-global');
-  fetch(`${API_URL}?accion=listarTodosLosEquipos&_ts=${Date.now()}`, { cache: 'no-store' })
+  fetch(`${API_URL}?accion=listarTodosLosEquiposLiviano&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       if (data.error) {
@@ -772,9 +774,34 @@ function elegirFiltroGlobal(campo, boton) {
 
 configurarCombo('input-equipo-global', 'opciones-equipo-global', () => equiposTodosGlobal,
   (eq) => `${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'}) — 🏥 ${eq.sede || 'SIN SEDE'}`,
-  (equipo) => { origenBusqueda = 'manual'; mostrarEquipo(equipo); },
+  (equipo) => { origenBusqueda = 'manual'; seleccionarEquipoGlobal(equipo); },
   (eq) => eq[campoFiltroEquipoGlobal] || ''
 );
+
+/** Al elegir un resultado del buscador global (que trae datos livianos), se pide el detalle
+ *  completo (vigencia, vida útil, última actualización) SOLO de ese equipo puntual — así el
+ *  cálculo pesado no se hace para toda la red, solo para el equipo que sí se va a actualizar. */
+function seleccionarEquipoGlobal(equipoLiviano) {
+  const input = document.getElementById('input-equipo-global');
+  input.disabled = true;
+  const placeholderPrevio = input.placeholder;
+  input.placeholder = 'Cargando equipo...';
+  fetch(`${API_URL}?accion=obtenerEquipoPorFila&fila=${equipoLiviano.fila}&_ts=${Date.now()}`, { cache: 'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      input.disabled = false;
+      input.placeholder = placeholderPrevio;
+      if (data.error) {
+        input.placeholder = 'Error: ' + data.error;
+        return;
+      }
+      mostrarEquipo(data);
+    })
+    .catch(() => {
+      input.disabled = false;
+      input.placeholder = 'Error de conexión — intenta de nuevo';
+    });
+}
 
 /* ---------- Combos de Sede y Servicio dentro del Paso 2 (actualizar) ---------- */
 configurarCombo('input-sede-editar', 'opciones-sede-editar', () => sedesTodas, (s) => s, (sede) => {
