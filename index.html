@@ -1,1488 +1,839 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<!-- Evitar que el WebView guarde la página en caché -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Actualización de Equipos Biomédicos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<style>
-  :root {
-    --tinta: #0f2f3d;
-    --primario: #0e6e6e;
-    --primario-oscuro: #0a4f4f;
-    --primario-claro: #e6f3f2;
-    --verde: #1a8754;
-    --verde-claro: #e8f6ef;
-    --ambar: #b3720a;
-    --ambar-claro: #fdf2e0;
-    --rojo: #c62b1f;
-    --rojo-claro: #fbe9e7;
-    --fondo: #f5f7f7;
-    --superficie: #ffffff;
-    --borde: #e1e6e6;
-    --texto: #14201f;
-    --texto-suave: #5b6b6a;
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html { -webkit-text-size-adjust: 100%; }
-  body {
-    margin: 0;
-    font-family: "Inter", -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--fondo);
-    color: var(--texto);
-    line-height: 1.5;
-    font-size: 15px;
-    text-transform: uppercase; /* todo el texto visible se muestra en mayúscula */
-  }
-
-  header {
-    background: var(--tinta);
-    color: #fff;
-    padding: 22px 20px;
-    display: flex; align-items: center; gap: 12px;
-  }
-  header .btn-recargar {
-    margin-left: auto; width: auto; padding: 8px 12px; margin-top: 0;
-    background: rgba(255,255,255,0.12); border: none; border-radius: 8px;
-    display: flex; align-items: center; gap: 6px;
-    color: #fff; font-size: 13.5px; font-weight: 600; white-space: nowrap;
-  }
-  header .btn-recargar:active { background: rgba(255,255,255,0.25); }
-  header .marca-icono {
-    width: 38px; height: 38px; border-radius: 10px;
-    background: var(--primario); flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
-  }
-  header .titulo {
-    font-family: "Sora", sans-serif; font-weight: 700; font-size: 17px; letter-spacing: -0.01em;
-  }
-  header .subtitulo { font-size: 12.5px; color: #aebdbc; margin-top: 2px; }
-
-  .contenedor { max-width: 480px; margin: 0 auto; padding: 18px 16px 44px; }
-
-  .paso-badge {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-    color: var(--primario); margin-bottom: 14px;
-  }
-  .paso-badge::before {
-    content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primario);
-  }
-
-  .tarjeta {
-    background: var(--superficie);
-    border-radius: 14px;
-    padding: 20px;
-    margin-bottom: 14px;
-    border: 1px solid var(--borde);
-    box-shadow: 0 1px 2px rgba(15,47,61,0.04);
-  }
-
-  .instructivo {
-    font-size: 13.5px; color: var(--texto-suave); margin: 0 0 14px; line-height: 1.55;
-  }
-
-  .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: var(--fondo); padding: 4px; border-radius: 11px; }
-  .tab-btn {
-    flex: 1; padding: 10px 8px; border: none; border-radius: 8px;
-    background: transparent; color: var(--texto-suave); font-weight: 600; font-size: 15px;
-    font-family: inherit; cursor: pointer; transition: background 0.15s, color 0.15s;
-  }
-  .tab-btn.activo { background: var(--superficie); color: var(--tinta); box-shadow: 0 1px 3px rgba(15,47,61,0.12); }
-
-  .filtro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
-  .filtro-grid .tab-btn {
-    background: var(--fondo); border: 1.5px solid var(--borde); padding: 13px 6px; font-size: 14px;
-  }
-  .filtro-grid .tab-btn.activo { background: var(--primario); color: #fff; border-color: var(--primario); box-shadow: none; }
-
-  #lector-camara { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 180px; }
-
-  select, button, input {
-    width: 100%; padding: 12px 14px; margin-top: 8px;
-    border-radius: 10px; border: 1.5px solid var(--borde); font-size: 16.5px;
-    font-family: inherit; color: var(--texto); background: var(--superficie);
-  }
-  input:focus, select:focus { outline: none; border-color: var(--primario); box-shadow: 0 0 0 3px var(--primario-claro); }
-  input:disabled { background: #f3f4f4; color: #9aa6a5; }
-
-  label { font-size: 13.5px; font-weight: 700; color: var(--texto-suave); margin-top: 16px; display: block; text-transform: uppercase; letter-spacing: 0.02em; }
-  label:first-of-type { margin-top: 0; }
-
-  button { cursor: pointer; font-weight: 600; font-family: inherit; transition: opacity 0.15s, transform 0.05s, background 0.15s; }
-  button:active { transform: scale(0.985); }
-  /* Íconos (emoji) más grandes y amigables dentro de botones */
-  .tab-btn, .btn-primario, .btn-secundario, .btn-terciario, .btn-registro, .estado-btn {
-    font-size: 1.08em;
-  }
-
-  .btn-primario {
-    background: var(--primario); color: #fff; border: 1.5px solid var(--primario);
-    margin-top: 18px; padding: 15px; font-size: 16.5px;
-  }
-  .btn-primario:hover { background: var(--primario-oscuro); }
-  .btn-primario:disabled { background: #c3cecd; border-color: #c3cecd; color: #fff; }
-
-  .btn-secundario {
-    margin-top: 10px; background: var(--superficie); color: var(--primario);
-    border: 1.5px solid var(--primario); padding: 12px;
-  }
-  .btn-terciario {
-    margin-top: 10px; background: transparent; color: var(--texto-suave);
-    border: 1.5px solid var(--borde); padding: 12px;
-  }
-  .btn-registro {
-    margin-top: 12px; background: var(--verde-claro); color: var(--verde);
-    border: 1.5px solid var(--verde); padding: 12px;
-  }
-  .btn-registro-separado {
-    margin-top: 34px; padding-top: 22px; border-top: 1px dashed var(--borde);
-  }
-
-  .estado-opciones { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
-  .estado-btn {
-    flex: 1; padding: 14px 6px; border-radius: 10px; border: 1.5px solid var(--borde);
-    background: var(--superficie); color: var(--texto-suave); font-weight: 700; font-size: 14.5px; text-align: center;
-  }
-  .estado-btn.op.sel { background: var(--verde-claro); border-color: var(--verde); color: var(--verde); }
-  .estado-btn.parcial.sel { background: var(--ambar-claro); border-color: var(--ambar); color: var(--ambar); }
-  .estado-btn.inop.sel { background: var(--rojo-claro); border-color: var(--rojo); color: var(--rojo); }
-  .estado-btn.baja.sel { background: #e9eaec; border-color: #495057; color: #495057; }
-
-  .equipo-info {
-    font-size: 13.5px; line-height: 2; background: var(--primario-claro);
-    border-radius: 12px; padding: 16px; margin-bottom: 6px; border: 1px solid #d4e8e6;
-  }
-  .equipo-info .titulo-equipo {
-    display: block; font-family: "Sora", sans-serif; font-size: 15.5px; font-weight: 700;
-    color: var(--tinta); margin-bottom: 8px; line-height: 1.3;
-  }
-  .equipo-info b { color: var(--tinta); }
-  .equipo-info .fila-dato { color: var(--texto-suave); }
-  .equipo-info .fila-dato b { color: var(--texto); font-weight: 600; }
-
-  /* Bloque de "última actualización registrada" (historial más reciente del equipo) */
-  .ultima-actualizacion {
-    font-size: 13px; line-height: 1.65; background: var(--ambar-claro);
-    border: 1px solid #f0dfb0; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px;
-  }
-  .ultima-actualizacion .titulo-bloque {
-    display: block; font-size: 11.5px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.03em; color: var(--ambar); margin-bottom: 6px;
-  }
-  .ultima-actualizacion b { color: var(--texto); }
-  .ultima-actualizacion .obs { display: block; margin-top: 4px; color: var(--texto-suave); }
-  .ultima-actualizacion.sin-datos { background: var(--fondo); border-color: var(--borde); color: #9aa6a5; font-style: italic; }
-
-  .oculto { display: none !important; }
-
-  .mensaje { padding: 12px 14px; border-radius: 10px; font-size: 13.5px; margin-top: 12px; font-weight: 500; }
-  .mensaje.error { background: var(--rojo-claro); color: var(--rojo); }
-  .mensaje.exito { background: var(--verde-claro); color: var(--verde); font-weight: 700; font-size: 14.5px; border: 1.5px solid var(--verde); }
-
-  .opcional { color: #9aa6a5; font-weight: 400; text-transform: none; letter-spacing: 0; }
-
-  /* Buscador tipo combobox */
-  .combo { position: relative; }
-  .combo-opciones {
-    position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 4px;
-    background: var(--superficie); border: 1.5px solid var(--borde);
-    border-radius: 12px; max-height: 240px; overflow-y: auto;
-    box-shadow: 0 8px 20px rgba(15,47,61,0.14);
-  }
-  .combo-opcion {
-    padding: 12px 14px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f0f1f1;
-  }
-  .combo-opcion:last-child { border-bottom: none; }
-  .combo-opcion:hover, .combo-opcion.activa { background: var(--primario-claro); }
-  .combo-vacio { padding: 12px 14px; font-size: 13.5px; color: #9aa6a5; }
-
-  /* Tarjeta de % de equipos actualizados (pantalla inicial) */
-  .tarjeta-stats { padding: 16px 20px; }
-  .stats-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-  .stats-label { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: var(--texto-suave); }
-  .stats-porcentaje { font-family: "Sora", sans-serif; font-size: 22px; font-weight: 800; color: var(--primario); }
-  .stats-barra { width: 100%; height: 8px; border-radius: 6px; background: var(--fondo); overflow: hidden; }
-  .stats-barra-relleno { height: 100%; width: 0%; background: var(--primario); border-radius: 6px; transition: width 0.4s ease; }
-  .stats-detalle { margin-top: 6px; font-size: 12px; color: var(--texto-suave); }
-
-  /* Estado de conexión y cambios pendientes de sincronizar (modo sin señal) */
-  .conexion-fila { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 8px; }
-  .indicador-conexion { font-size: 12px; font-weight: 700; color: var(--verde); }
-  .indicador-conexion.sin-conexion { color: var(--rojo); }
-  .indicador-pendientes {
-    font-size: 11.5px; font-weight: 700; color: var(--ambar); background: var(--ambar-claro);
-    padding: 3px 9px; border-radius: 20px; white-space: nowrap;
-  }
-</style>
-</head>
-<body>
-
-<header>
-  <div class="marca-icono">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M11 2v6M13 2v6M4 8h16l-1.5 11a2 2 0 0 1-2 1.7H7.5a2 2 0 0 1-2-1.7L4 8Z" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M9 12h6M12 9v6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
-    </svg>
-  </div>
-  <div>
-    <div class="titulo">Equipos Biomédicos</div>
-    <div class="subtitulo">Escanea, actualiza el estado y listo</div>
-  </div>
-  <button type="button" class="btn-recargar" onclick="recargarApp()" title="Recargar la app (usa esto si algo se ve desactualizado)">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 11A8 8 0 1 0 19.5 15" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-      <path d="M20 4v7h-7" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    Actualizar sistema
-  </button>
-</header>
-
-<div class="contenedor">
-
-  <!-- % global de equipos actualizados + estado de conexión (siempre visible en la pantalla inicial) -->
-  <div class="tarjeta tarjeta-stats" id="tarjeta-stats">
-    <div class="stats-header">
-      <span class="stats-label">📊 Equipos actualizados</span>
-      <span class="stats-porcentaje" id="stats-porcentaje">—</span>
-    </div>
-    <div class="stats-barra"><div class="stats-barra-relleno" id="stats-barra-relleno"></div></div>
-    <div class="stats-detalle" id="stats-detalle">Cargando...</div>
-    <div class="conexion-fila">
-      <span id="indicador-conexion" class="indicador-conexion">🟢 En línea</span>
-      <span id="indicador-pendientes" class="indicador-pendientes oculto"></span>
-    </div>
-    <button type="button" class="btn-secundario oculto" id="btn-sincronizar" onclick="sincronizarPendientes(true)">🔄 Sincronizar cambios pendientes</button>
-  </div>
-
-  <!-- Paso 1: identificar el equipo -->
-  <div id="paso-buscar" class="tarjeta">
-    <span class="paso-badge">Paso 1 · Buscar equipo</span>
-    <div class="tabs">
-      <button class="tab-btn activo" id="tab-scan" onclick="cambiarTab('scan')">📷 Escanear código</button>
-      <button class="tab-btn" id="tab-manual" onclick="cambiarTab('manual')">📋 Buscar manualmente</button>
-    </div>
-
-    <div id="vista-scan">
-      <p class="instructivo">Apunta la cámara al código de barras de la etiqueta del equipo. Cuando lo reconozca, presiona "Capturar y buscar".</p>
-      <button id="btn-iniciar-camara" class="btn-primario" onclick="iniciarEscaner()">📷 Iniciar escáner</button>
-      <div id="lector-camara" class="oculto"></div>
-      <div id="codigo-en-vivo" class="mensaje oculto"></div>
-      <button id="btn-capturar" class="btn-primario oculto" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
-      <div id="msg-scan" class="mensaje oculto"></div>
-      <button id="btn-ir-registrar" class="oculto btn-registro" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
-
-      <label>¿No hay código de barras? Escribe el número a mano</label>
-      <input type="text" id="input-codigo-manual" placeholder="Ej: escrito con plumón en la etiqueta">
-      <button class="btn-secundario" onclick="buscarCodigoManual()">✍️ Buscar por este código</button>
-    </div>
-
-    <div id="vista-manual" class="oculto">
-      <div class="tabs">
-        <button class="tab-btn activo" id="subtab-sede" onclick="cambiarSubtabManual('sede')">🏥 Por establecimiento</button>
-        <button class="tab-btn" id="subtab-global" onclick="cambiarSubtabManual('global')">🔍 Buscar en todos</button>
-      </div>
-
-      <div id="bloque-por-sede">
-        <label>Nombre del establecimiento</label>
-        <div class="combo">
-          <input type="text" id="input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
-          <div class="combo-opciones oculto" id="opciones-sede"></div>
-        </div>
-
-        <div id="bloque-filtro" class="oculto">
-          <label>¿Cómo deseas buscar el equipo?</label>
-          <div class="filtro-grid" id="filtro-tabs">
-            <button type="button" class="tab-btn activo" onclick="elegirFiltro('descripcion', this)">Nombre de equipo</button>
-            <button type="button" class="tab-btn" onclick="elegirFiltro('serie', this)">Serie</button>
-            <button type="button" class="tab-btn" onclick="elegirFiltro('modelo', this)">Modelo</button>
-            <button type="button" class="tab-btn" onclick="elegirFiltro('marca', this)">Marca</button>
-          </div>
-
-          <label>Equipo</label>
-          <div class="combo">
-            <input type="text" id="input-equipo" placeholder="Cargando equipos..." autocomplete="off" disabled>
-            <div class="combo-opciones oculto" id="opciones-equipo"></div>
-          </div>
-
-          <button type="button" class="btn-registro btn-registro-separado" onclick="abrirRegistroDesdeManual()">➕ No lo ubico manualmente, registrar equipo nuevo</button>
-        </div>
-      </div>
-
-      <div id="bloque-global" class="oculto">
-        <p class="instructivo">Busca en TODOS los establecimientos a la vez — útil cuando no sabes en qué sede quedó registrado el equipo. Cada resultado muestra su establecimiento actual.</p>
-        <label>¿Cómo deseas buscar el equipo?</label>
-        <div class="filtro-grid" id="filtro-tabs-global">
-          <button type="button" class="tab-btn" onclick="elegirFiltroGlobal('descripcion', this)">Nombre de equipo</button>
-          <button type="button" class="tab-btn activo" onclick="elegirFiltroGlobal('serie', this)">Serie</button>
-          <button type="button" class="tab-btn" onclick="elegirFiltroGlobal('modelo', this)">Modelo</button>
-          <button type="button" class="tab-btn" onclick="elegirFiltroGlobal('marca', this)">Marca</button>
-        </div>
-
-        <label>Equipo</label>
-        <div class="combo">
-          <input type="text" id="input-equipo-global" placeholder="Cargando equipos..." autocomplete="off" disabled>
-          <div class="combo-opciones oculto" id="opciones-equipo-global"></div>
-        </div>
-
-        <button type="button" class="btn-registro btn-registro-separado" onclick="abrirRegistroDesdeManual()">➕ No lo ubico manualmente, registrar equipo nuevo</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Paso 2: confirmar equipo y actualizar -->
-  <div id="paso-actualizar" class="tarjeta oculto">
-    <span class="paso-badge">Paso 2 · Actualizar equipo</span>
-    <div class="equipo-info" id="info-equipo"></div>
-
-    <!-- Última actualización registrada para este equipo (fecha, técnico y observación) -->
-    <div class="ultima-actualizacion" id="bloque-ultima-actualizacion"></div>
-
-    <label>Sede</label>
-    <div class="combo">
-      <input type="text" id="input-sede-editar" placeholder="Escribe para buscar una sede..." autocomplete="off">
-      <div class="combo-opciones oculto" id="opciones-sede-editar"></div>
-    </div>
-
-    <label>Servicio</label>
-    <div class="combo">
-      <input type="text" id="input-servicio-editar" placeholder="Escribe para buscar un servicio..." autocomplete="off">
-      <div class="combo-opciones oculto" id="opciones-servicio-editar"></div>
-    </div>
-
-    <label>Marca</label>
-    <input type="text" id="input-marca">
-
-    <label>Modelo</label>
-    <input type="text" id="input-modelo">
-
-    <label>Serie</label>
-    <input type="text" id="input-serie">
-
-    <label>Fecha de alta del equipo <span class="opcional">corrígela solo si está mal</span></label>
-    <input type="date" id="input-fecha-alta-editar" oninput="calcularVigenciaPreviewEditar()" onchange="calcularVigenciaPreviewEditar()">
-    <div id="vigencia-preview-editar" class="mensaje oculto"></div>
-
-    <label>Estado del equipo <span class="opcional">ya viene marcado con el estado actual; cámbialo solo si es necesario</span></label>
-    <div class="estado-opciones">
-      <button class="estado-btn op" data-estado="OPERATIVO" onclick="seleccionarEstado('OPERATIVO', this)">✅ Operativo</button>
-      <button class="estado-btn parcial" data-estado="OPERATIVO PARCIALMENTE" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE', this)">⚠️ Parcial</button>
-      <button class="estado-btn inop" data-estado="INOPERATIVO" onclick="seleccionarEstado('INOPERATIVO', this)">⛔ Inoperativo</button>
-      <button class="estado-btn baja" data-estado="DE BAJA" onclick="seleccionarEstado('DE BAJA', this)">🗑️ Baja</button>
-    </div>
-
-    <div id="campo-observacion" class="oculto">
-      <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
-      <input type="text" id="input-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormulario()">
-      <button type="button" class="btn-secundario oculto" id="btn-copiar-observacion" onclick="copiarObservacionAnterior()">📋 Usar el mismo motivo de la última actualización</button>
-    </div>
-
-    <label>Técnico</label>
-    <select id="select-tecnico" onchange="validarFormulario()">
-      <option value="">— Elegir ejecutor —</option>
-      <option value="ANGEL FLORES">ANGEL FLORES</option>
-      <option value="JOSE ESPINOZA">JOSE ESPINOZA</option>
-      <option value="ALFONSO VARGAS">ALFONSO VARGAS</option>
-      <option value="JEAN MAGUIÑA">JEAN MAGUIÑA</option>
-      <option value="DANNY CORREA">DANNY CORREA</option>
-      <option value="JULIO VEGA">JULIO VEGA</option>
-      <option value="JOSE LUIS CAMPOS">JOSE LUIS CAMPOS</option>
-      <option value="KEVIN BLANCO">KEVIN BLANCO</option>
-      <option value="WAGNER ROJAS">WAGNER ROJAS</option>
-    </select>
-
-    <button class="btn-primario" id="btn-guardar" onclick="guardarActualizacion()" disabled>Actualizar equipo</button>
-    <button class="btn-secundario" id="btn-escanear-otro" onclick="escanearOtro()">📷 Escanear otro código</button>
-    <button class="btn-secundario oculto" id="btn-buscar-otro" onclick="buscarOtroEquipo()">🔍 Buscar otro equipo</button>
-    <button class="btn-terciario" onclick="reiniciar()">Cancelar / Buscar otro equipo</button>
-
-    <div id="msg-guardar" class="mensaje oculto"></div>
-  </div>
-
-  <!-- Paso 3: registrar equipo nuevo -->
-  <div id="paso-registrar" class="tarjeta oculto">
-    <span class="paso-badge">Registrar equipo nuevo</span>
-    <p class="instructivo">Completa los datos que tengas a la mano. Los que no conozcas los puedes dejar en blanco.</p>
-
-    <label>Código <span class="opcional" id="reg-codigo-opcional">(déjalo en blanco si no tiene código de barras ni patrimonial)</span></label>
-    <input type="text" id="reg-codigo" placeholder="Escribe el código si lo tienes">
-
-    <label>Este código es...</label>
-    <select id="reg-tipo-codigo">
-      <option value="barras">Código de barras</option>
-      <option value="patrimonial">Código patrimonial</option>
-    </select>
-
-    <label>Descripción del equipo</label>
-    <input type="text" id="reg-descripcion" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormularioRegistro()">
-
-    <label>Fecha de alta del equipo</label>
-    <input type="date" id="reg-fecha-alta" oninput="calcularVigenciaPreviewRegistro(); validarFormularioRegistro();" onchange="calcularVigenciaPreviewRegistro(); validarFormularioRegistro();">
-    <div id="reg-vigencia-preview" class="mensaje oculto"></div>
-
-    <label>Sede</label>
-    <div class="combo">
-      <input type="text" id="reg-input-sede" placeholder="Escribe para buscar una sede..." autocomplete="off">
-      <div class="combo-opciones oculto" id="reg-opciones-sede"></div>
-    </div>
-
-    <label>Servicio</label>
-    <input type="text" id="reg-servicio" placeholder="Ej: FARMACIA">
-
-    <label>Marca</label>
-    <input type="text" id="reg-marca">
-
-    <label>Modelo</label>
-    <input type="text" id="reg-modelo">
-
-    <label>Serie</label>
-    <input type="text" id="reg-serie">
-
-    <label>Estado inicial</label>
-    <div class="estado-opciones">
-      <button class="estado-btn op" data-estado="OPERATIVO" onclick="seleccionarEstadoRegistro('OPERATIVO', this)">✅ Operativo</button>
-      <button class="estado-btn parcial" data-estado="OPERATIVO PARCIALMENTE" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE', this)">⚠️ Parcial</button>
-      <button class="estado-btn inop" data-estado="INOPERATIVO" onclick="seleccionarEstadoRegistro('INOPERATIVO', this)">⛔ Inoperativo</button>
-      <button class="estado-btn baja" data-estado="DE BAJA" onclick="seleccionarEstadoRegistro('DE BAJA', this)">🗑️ Baja</button>
-    </div>
-
-    <div id="reg-campo-observacion" class="oculto">
-      <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
-      <input type="text" id="reg-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormularioRegistro()">
-    </div>
-
-    <label>Técnico</label>
-    <select id="reg-tecnico" onchange="validarFormularioRegistro()">
-      <option value="">— Elegir ejecutor —</option>
-      <option value="ANGEL FLORES">ANGEL FLORES</option>
-      <option value="JOSE ESPINOZA">JOSE ESPINOZA</option>
-      <option value="ALFONSO VARGAS">ALFONSO VARGAS</option>
-      <option value="JEAN MAGUIÑA">JEAN MAGUIÑA</option>
-      <option value="DANNY CORREA">DANNY CORREA</option>
-      <option value="JULIO VEGA">JULIO VEGA</option>
-      <option value="JOSE LUIS CAMPOS">JOSE LUIS CAMPOS</option>
-      <option value="KEVIN BLANCO">KEVIN BLANCO</option>
-      <option value="WAGNER ROJAS">WAGNER ROJAS</option>
-    </select>
-
-    <button class="btn-primario" id="btn-registrar" onclick="registrarEquipo()" disabled>Registrar equipo</button>
-    <button class="btn-terciario" onclick="reiniciar()">Cancelar</button>
-
-    <div id="msg-registrar" class="mensaje oculto"></div>
-  </div>
-
-</div>
-
-<script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
-
-/** Fuerza una recarga real: primero le pide al servidor que limpie su caché de equipos
- *  (por si quedó desactualizada), y recién después recarga la página sin usar nada
- *  guardado en caché del WebView. */
-function recargarApp() {
-  fetch(`${API_URL}?accion=limpiarCache&_ts=${Date.now()}`, { cache: 'no-store' })
-    .catch(() => {}) // si falla la llamada, igual recargamos la página
-    .finally(() => {
-      const url = window.location.pathname + '?v=' + Date.now();
-      window.location.href = url;
-    });
-}
-
-let equipoActual = null;
-let estadoSeleccionado = null;
-let codigoParaRegistrar = '';
-let estadoRegistroSeleccionado = null;
-
-let sedesTodas = [];
-let equiposTodos = []; // { descripcion, marca, serie, ...datosCompletos } — de la sede elegida
-let equiposTodosGlobal = []; // igual, pero de TODOS los establecimientos (búsqueda global)
-let serviciosEditar = []; // servicios disponibles para la sede que se está editando en Paso 2
-
-let sedeSeleccionada = '';
-
-/* ================================================================
-   MODO SIN CONEXIÓN
-   - Cada vez que se trae información del servidor con éxito, se guarda
-     una copia en este celular (localStorage).
-   - Si falla una búsqueda por falta de señal, se usa esa copia.
-   - Si falla un guardado (actualizar o registrar) por falta de señal,
-     el cambio se guarda en una "cola" en este celular y se envía solo
-     apenas vuelva la conexión (o al presionar "Sincronizar ahora").
-   ================================================================ */
-const CACHE_INDICE_KEY = 'cache_indice_equipos_v1'; // equipos ya vistos, buscables por código
-const COLA_KEY = 'cola_pendientes_v1'; // cambios guardados sin conexión, pendientes de enviar
-
-function guardarCacheLista(clave, lista) {
-  try { localStorage.setItem(clave, JSON.stringify(lista)); } catch (e) {}
-}
-function leerCacheLista(clave) {
-  try { return JSON.parse(localStorage.getItem(clave) || 'null'); } catch (e) { return null; }
-}
-
-/** Agrega/actualiza equipos en el índice local por código de barras y código patrimonial,
- *  para poder encontrarlos luego aunque no haya señal. */
-function actualizarIndiceLocal(equipos) {
-  if (!equipos || !equipos.length) return;
-  let indice = {};
-  try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) { indice = {}; }
-  equipos.forEach(eq => {
-    if (eq.codigoBarras) indice[eq.codigoBarras.toString().trim().toUpperCase()] = eq;
-    if (eq.codigoPatrimonial) indice[eq.codigoPatrimonial.toString().trim().toUpperCase()] = eq;
-  });
-  try { localStorage.setItem(CACHE_INDICE_KEY, JSON.stringify(indice)); } catch (e) {}
-}
-function buscarEnIndiceLocal(codigo) {
-  let indice = {};
-  try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) { return null; }
-  return indice[codigo.toString().trim().toUpperCase()] || null;
-}
-
-function actualizarIndicadorConexion() {
-  const el = document.getElementById('indicador-conexion');
-  if (!el) return;
-  if (navigator.onLine) {
-    el.textContent = '🟢 En línea';
-    el.classList.remove('sin-conexion');
-  } else {
-    el.textContent = '🔴 Sin conexión — se guardará en el celular';
-    el.classList.add('sin-conexion');
-  }
-}
-
-function leerCola() {
-  try { return JSON.parse(localStorage.getItem(COLA_KEY) || '[]'); } catch (e) { return []; }
-}
-function guardarCola(cola) {
-  try { localStorage.setItem(COLA_KEY, JSON.stringify(cola)); } catch (e) {}
-  actualizarIndicadorPendientes();
-}
-function encolarPendiente(tipo, payload) {
-  const cola = leerCola();
-  cola.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2), tipo, payload });
-  guardarCola(cola);
-}
-function actualizarIndicadorPendientes() {
-  const cola = leerCola();
-  const el = document.getElementById('indicador-pendientes');
-  const btn = document.getElementById('btn-sincronizar');
-  if (!el || !btn) return;
-  if (cola.length > 0) {
-    el.textContent = `⏳ ${cola.length} sin enviar`;
-    el.classList.remove('oculto');
-    btn.classList.remove('oculto');
-  } else {
-    el.classList.add('oculto');
-    btn.classList.add('oculto');
-  }
-}
-
-/** Guarda un cambio (actualización o registro) que no se pudo enviar por falta de señal.
- *  No se pierde: queda en este celular y se envía apenas vuelva la conexión. */
-function guardarSinConexion(tipo, payload) {
-  encolarPendiente(tipo, payload);
-
-  // Refleja el cambio en la copia local, para que si se vuelve a buscar este mismo equipo
-  // sin señal, ya se vean los datos más recientes (aunque el servidor aún no los tenga).
-  const codigoIndice = (payload.codigoBarras || payload.codigoPatrimonial || '').toString().trim().toUpperCase();
-  if (codigoIndice) {
-    let indice = {};
-    try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) {}
-    const previo = indice[codigoIndice] || {};
-    const actualizado = Object.assign({}, previo, {
-      descripcion: previo.descripcion || payload.descripcion,
-      codigoBarras: payload.codigoBarras || previo.codigoBarras,
-      codigoPatrimonial: payload.codigoPatrimonial || previo.codigoPatrimonial,
-      estadoActual: payload.estado,
-      sede: payload.sede,
-      dependencia: payload.servicio,
-      marca: payload.marca,
-      modelo: payload.modelo,
-      serie: payload.serie,
-      ultimaObservacion: payload.observacion,
-      ultimoTecnico: payload.tecnico,
-      pendienteSync: true,
-    });
-    if (payload.codigoBarras) indice[payload.codigoBarras.toString().trim().toUpperCase()] = actualizado;
-    if (payload.codigoPatrimonial) indice[payload.codigoPatrimonial.toString().trim().toUpperCase()] = actualizado;
-    try { localStorage.setItem(CACHE_INDICE_KEY, JSON.stringify(indice)); } catch (e) {}
-  }
-
-  const idMsg = tipo === 'registrar' ? 'msg-registrar' : 'msg-guardar';
-  mostrarMensaje(idMsg, '📴 Sin conexión: se guardó en este celular y se enviará solo apenas vuelva la señal.', 'exito', true);
-  setTimeout(volverAlInicio, 2200);
-}
-
-/** Envía uno por uno los cambios guardados en este celular mientras no había señal.
- *  Se detiene apenas uno falla, para no perder el orden — el siguiente intento
- *  retomará desde ahí (automático al volver la conexión, o manual con el botón). */
-function sincronizarPendientes(manual) {
-  const cola = leerCola();
-  if (cola.length === 0) {
-    if (manual) mostrarMensaje('msg-guardar', 'No hay cambios pendientes por enviar.', 'exito');
-    return;
-  }
-  if (!navigator.onLine) {
-    if (manual) mostrarMensaje('msg-guardar', 'Sigues sin conexión — se enviará automáticamente cuando vuelva la señal.', 'error');
-    return;
-  }
-
-  const item = cola[0];
-  fetch(API_URL, { method: 'POST', cache: 'no-store', body: JSON.stringify(item.payload) })
-    .then(r => r.json())
-    .then(data => {
-      if (data.exito) {
-        const restante = leerCola();
-        restante.shift();
-        guardarCola(restante);
-        cargarEstadisticas();
-        sincronizarPendientes(false); // sigue con el siguiente pendiente, si hay
-      } else if (manual) {
-        mostrarMensaje('msg-guardar', 'No se pudo sincronizar: ' + (data.error || 'error desconocido'), 'error');
-      }
-    })
-    .catch(() => {
-      if (manual) mostrarMensaje('msg-guardar', 'Sigue sin haber conexión real. Se reintentará más tarde.', 'error');
-    });
-}
-
-/* ---------- Tabs ---------- */
-function cambiarTab(tab) {
-  document.getElementById('tab-scan').classList.toggle('activo', tab === 'scan');
-  document.getElementById('tab-manual').classList.toggle('activo', tab === 'manual');
-  document.getElementById('vista-scan').classList.toggle('oculto', tab !== 'scan');
-  document.getElementById('vista-manual').classList.toggle('oculto', tab !== 'manual');
-
-  if (tab === 'manual' && sedesTodas.length === 0) {
-    cargarSedes();
-  }
-  // La cámara ya NO arranca sola: el técnico la inicia con el botón "Iniciar escáner"
-}
-
-/** Sub-pestañas dentro de "Buscar manualmente": por establecimiento (como antes) o
- *  en todos los establecimientos a la vez (para cuando no se sabe dónde quedó el equipo) */
-function cambiarSubtabManual(tab) {
-  document.getElementById('subtab-sede').classList.toggle('activo', tab === 'sede');
-  document.getElementById('subtab-global').classList.toggle('activo', tab === 'global');
-  document.getElementById('bloque-por-sede').classList.toggle('oculto', tab !== 'sede');
-  document.getElementById('bloque-global').classList.toggle('oculto', tab !== 'global');
-  if (tab === 'global') cargarEquiposGlobal();
-}
-
-/* ---------- Escáner de código de barras ---------- */
-let lectorIniciado = false;
-let lectorInstancia = null;
-let ultimoCodigoDetectado = null;
-
-function iniciarEscaner() {
-  if (lectorIniciado) return;
-  lectorIniciado = true;
-  document.getElementById('btn-iniciar-camara').classList.add('oculto');
-  document.getElementById('lector-camara').classList.remove('oculto');
-  document.getElementById('btn-capturar').classList.remove('oculto');
-
-  lectorInstancia = new Html5Qrcode('lector-camara');
-  lectorInstancia.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 250, height: 120 } },
-    (codigoDetectado) => {
-      ultimoCodigoDetectado = codigoDetectado;
-      const aviso = document.getElementById('codigo-en-vivo');
-      aviso.textContent = `Código listo: "${codigoDetectado}" — presiona "Capturar y buscar"`;
-      aviso.className = 'mensaje exito';
-      document.getElementById('btn-capturar').disabled = false;
-    },
-    () => {}
-  ).catch((err) => {
-    lectorIniciado = false;
-    document.getElementById('btn-iniciar-camara').classList.remove('oculto');
-    document.getElementById('lector-camara').classList.add('oculto');
-    document.getElementById('btn-capturar').classList.add('oculto');
-    mostrarMensaje('msg-scan', 'No se pudo acceder a la cámara: ' + err, 'error');
-  });
-}
-
-/** Si el código es puramente numérico, quita los ceros a la izquierda (029777 -> 29777).
- *  Los códigos con letras u otros caracteres se dejan tal cual. El backend también
- *  normaliza al buscar; esto es solo para que lo que se muestra en pantalla ya venga limpio. */
-function limpiarCerosIzquierda(codigo) {
-  if (!codigo) return codigo;
-  let limpio = codigo.toString().trim();
-  if (/^\d+$/.test(limpio)) limpio = limpio.replace(/^0+(?=\d)/, '');
-  return limpio;
-}
-
-function capturarCodigo() {
-  if (!ultimoCodigoDetectado) return;
-  const codigo = limpiarCerosIzquierda(ultimoCodigoDetectado);
-  document.getElementById('btn-capturar').disabled = true;
-  document.getElementById('btn-ir-registrar').classList.add('oculto');
-  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito', true);
-  if (lectorInstancia) { try { lectorInstancia.pause(true); } catch (e) {} }
-  buscarPorCodigo(codigo, () => {
-    if (lectorInstancia) { try { lectorInstancia.resume(); } catch (e) {} }
-    document.getElementById('btn-capturar').disabled = false;
-  });
-}
-
-/** Para cuando no hay código de barras físico y el número está escrito a mano en la etiqueta */
-function buscarCodigoManual() {
-  const input = document.getElementById('input-codigo-manual');
-  const codigo = limpiarCerosIzquierda(input.value.trim());
-  if (!codigo) return;
-  document.getElementById('btn-ir-registrar').classList.add('oculto');
-  mostrarMensaje('msg-scan', `Buscando "${codigo}"...`, 'exito', true);
-  buscarPorCodigo(codigo, () => { input.value = ''; });
-}
-
-function buscarPorCodigo(codigo, alTerminar) {
-  const codigoNormalizado = codigo.toString().trim();
-
-  // Sin señal: ni se intenta la llamada al servidor, se busca directo en la copia local
-  if (!navigator.onLine) {
-    buscarPorCodigoOffline(codigoNormalizado, alTerminar);
-    return;
-  }
-
-  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigoNormalizado)}&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById('codigo-en-vivo').classList.add('oculto');
-      ultimoCodigoDetectado = null;
-      if (data.error) {
-        if (data.noEncontrado) {
-          mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error', true);
-          codigoParaRegistrar = codigoNormalizado;
-          document.getElementById('btn-ir-registrar').classList.remove('oculto');
-        } else {
-          mostrarMensaje('msg-scan', `Código "${codigoNormalizado}" — ${data.error}`, 'error', true);
-        }
-        if (alTerminar) setTimeout(alTerminar, 500);
-      } else {
-        document.getElementById('btn-ir-registrar').classList.add('oculto');
-        origenBusqueda = 'scan';
-        actualizarIndiceLocal([data]);
-        mostrarEquipo(data);
-        if (alTerminar) setTimeout(alTerminar, 300);
-      }
-    })
-    .catch(() => {
-      // El navegador puede creer que hay señal (wifi hospitalario sin salida real a internet);
-      // si la llamada de verdad falla, se intenta igual con la copia guardada en el celular.
-      buscarPorCodigoOffline(codigoNormalizado, alTerminar);
-    });
-}
-
-/** Busca el código en la copia local guardada en este celular (equipos ya vistos antes).
- *  No reemplaza a la base de datos real, pero permite seguir trabajando sin señal. */
-function buscarPorCodigoOffline(codigoNormalizado, alTerminar) {
-  document.getElementById('codigo-en-vivo').classList.add('oculto');
-  ultimoCodigoDetectado = null;
-  const encontrado = buscarEnIndiceLocal(codigoNormalizado);
-  if (encontrado) {
-    mostrarMensaje('msg-scan', '📴 Sin conexión — mostrando la última copia guardada de este equipo en el celular.', 'error', true);
-    origenBusqueda = 'scan';
-    mostrarEquipo(encontrado);
-  } else {
-    mostrarMensaje('msg-scan', '📴 Sin conexión y este código no está guardado en el celular todavía. Puedes registrarlo como nuevo y se enviará al volver la señal.', 'error', true);
-    codigoParaRegistrar = codigoNormalizado;
-    document.getElementById('btn-ir-registrar').classList.remove('oculto');
-  }
-  if (alTerminar) setTimeout(alTerminar, 400);
-}
-
-/** Vuelve directo a la pestaña de escaneo y reanuda la cámara si estaba pausada */
-function escanearOtro() {
-  reiniciar();
-  cambiarTab('scan');
-  ultimoCodigoDetectado = null;
-  document.getElementById('btn-capturar').disabled = true;
-  document.getElementById('codigo-en-vivo').classList.add('oculto');
-  if (lectorInstancia) {
-    try { lectorInstancia.resume(); } catch (e) {}
-  }
-}
-
-/** Vuelve a la búsqueda manual conservando la sede ya elegida */
-function buscarOtroEquipo() {
-  reiniciar();
-  cambiarTab('manual');
-  document.getElementById('input-equipo').value = '';
-  document.getElementById('input-equipo').focus();
-}
-
-/* ---------- Combobox genérico (buscador con filtro) ---------- */
-function configurarCombo(inputId, opcionesId, obtenerLista, obtenerEtiqueta, alSeleccionar, obtenerTextoFiltro) {
-  const input = document.getElementById(inputId);
-  const contenedor = document.getElementById(opcionesId);
-  const textoDeFiltro = obtenerTextoFiltro || obtenerEtiqueta;
-
-  function render(filtro) {
-    const lista = obtenerLista();
-    const texto = (filtro || '').toUpperCase();
-    const filtrada = (texto ? lista.filter(item => textoDeFiltro(item).toString().toUpperCase().includes(texto)) : lista.slice())
-      .sort((a, b) => obtenerEtiqueta(a).localeCompare(obtenerEtiqueta(b)));
-
-    if (filtrada.length === 0) {
-      contenedor.innerHTML = '<div class="combo-vacio">Sin resultados</div>';
-    } else {
-      const MOSTRAR = 500;
-      contenedor.innerHTML = filtrada.slice(0, MOSTRAR).map((item, i) =>
-        `<div class="combo-opcion" data-i="${i}">${obtenerEtiqueta(item)}</div>`
-      ).join('') + (filtrada.length > MOSTRAR ? `<div class="combo-vacio">Hay ${filtrada.length - MOSTRAR} más — sigue escribiendo para filtrar</div>` : '');
-      Array.from(contenedor.querySelectorAll('.combo-opcion')).forEach((el, i) => {
-        el.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          input.value = obtenerEtiqueta(filtrada[i]);
-          contenedor.classList.add('oculto');
-          alSeleccionar(filtrada[i]);
-        });
-      });
-    }
-    contenedor.classList.remove('oculto');
-  }
-
-  input.addEventListener('input', () => render(input.value));
-  input.addEventListener('focus', () => { if (!input.disabled) render(input.value); });
-  input.addEventListener('blur', () => setTimeout(() => contenedor.classList.add('oculto'), 150));
-}
-
-/* ---------- Carga de datos ---------- */
-function cargarSedes() {
-  if (sedesTodas.length > 0) return; // ya están cargadas
-  fetch(`${API_URL}?accion=listarSedes&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      sedesTodas = data.sedes || [];
-      guardarCacheLista('cache_sedes', sedesTodas);
-    })
-    .catch(() => {
-      const cache = leerCacheLista('cache_sedes');
-      if (cache && cache.length) sedesTodas = cache;
-    });
-}
-
-configurarCombo('input-sede', 'opciones-sede', () => sedesTodas, (s) => s, (sede) => {
-  seleccionarSede(sede);
-});
-
-function seleccionarSede(sede) {
-  sedeSeleccionada = sede;
-  document.getElementById('input-sede').value = sede;
-  document.getElementById('bloque-filtro').classList.remove('oculto');
-  document.getElementById('input-equipo').value = '';
-  document.getElementById('input-equipo').disabled = true;
-  document.getElementById('input-equipo').placeholder = 'Cargando equipos...';
-
-  cargarEquiposDeSede();
-}
-
-/** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador).
- *  Si falla por falta de señal, usa la última copia guardada de esa sede en este celular. */
-function cargarEquiposDeSede() {
-  if (!sedeSeleccionada) return;
-  const inputEquipo = document.getElementById('input-equipo');
-  const claveCache = 'cache_equipos_sede_' + sedeSeleccionada;
-  fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        inputEquipo.placeholder = 'Error: ' + data.error;
-        return;
-      }
-      equiposTodos = data.equipos || [];
-      guardarCacheLista(claveCache, equiposTodos);
-      actualizarIndiceLocal(equiposTodos);
-      inputEquipo.disabled = false;
-      inputEquipo.placeholder = equiposTodos.length > 0
-        ? textoPlaceholderFiltro(campoFiltroEquipo)
-        : 'No se encontraron equipos en esta sede';
-    })
-    .catch(() => {
-      const cache = leerCacheLista(claveCache);
-      if (cache && cache.length) {
-        equiposTodos = cache;
-        inputEquipo.disabled = false;
-        inputEquipo.placeholder = textoPlaceholderFiltro(campoFiltroEquipo) + ' (sin conexión, datos guardados)';
-      } else {
-        inputEquipo.placeholder = 'Sin conexión y sin datos guardados de esta sede';
-      }
-    });
-}
-
-const ETIQUETAS_FILTRO = {
-  descripcion: 'Escribe el nombre del equipo...',
-  serie: 'Escribe la serie...',
-  modelo: 'Escribe el modelo...',
-  marca: 'Escribe la marca...',
+/**
+ * ============================================================
+ * ACTUALIZACIÓN DE EQUIPOS BIOMÉDICOS - Backend (Apps Script)
+ * ============================================================
+ *
+ * La hoja "BBDD" tiene una columna REAL con la fecha de alta del
+ * equipo (columna E). La vigencia se calcula en vivo desde esa fecha.
+ *
+ * Layout de columnas fijas en "BBDD":
+ *   A: Código Patrimonial
+ *   B: Código de Barras
+ *   C: Descripción
+ *   D: Sede / Establecimiento de Salud
+ *   E: Fecha de Alta del Equipo   <-- fuente de verdad de la vigencia
+ *   F: Vigencia del Equipo (texto "X AÑOS Y MESES") — la escribe
+ *      esta app cada vez que se registra o actualiza el equipo,
+ *      calculada en vivo a partir de E.
+ *   G: Marca
+ *   H: Modelo
+ *   I: Serie
+ *   J: Servicio
+ *   K: Estado
+ *
+ * Las columnas de metadata (fecha de revisión, técnico, observaciones)
+ * se siguen creando dinámicamente al final de la hoja.
+ *
+ * ------------------------------------------------------------
+ * NOTA DE RENDIMIENTO (por qué esta versión es más rápida):
+ * Con ~19,700 filas, reconstruir el índice completo desde la hoja es
+ * lo más caro que hace este script. Antes, CUALQUIER actualización de
+ * un equipo borraba por completo la caché general, así que la
+ * siguiente búsqueda o consulta de porcentaje forzaba esa
+ * reconstrucción completa. Ahora:
+ *   - Buscar por código usa un índice aparte y liviano (código -> fila)
+ *     y lee esa UNA fila directo de la hoja: no toca el índice pesado.
+ *   - El porcentaje vive en su propia caché chica que se ajusta en
+ *     memoria (+1) en vez de recalcularse leyendo toda la hoja.
+ *   - Actualizar un equipo ya no invalida el índice pesado (se deja
+ *     vencer solo, cada 10 min) y escribe sus columnas en bloque en
+ *     vez de una por una.
+ *   - Registrar un equipo SÍ sigue invalidando el índice pesado y el
+ *     de códigos, porque reordena toda la hoja y los números de fila
+ *     de todos los equipos pueden cambiar.
+ * ------------------------------------------------------------
+ */
+
+const CONFIG = {
+  SHEET_NAME: 'BBDD',
+  SHEET_NAME_VIDA_UTIL: 'VIDA UTIL',
+  FILA_ENCABEZADO: 1,
+  CACHE_TTL_SEGUNDOS: 600, // 10 minutos: se refresca sola; el botón "Actualizar sistema" también la limpia al toque
 };
-function textoPlaceholderFiltro(campo) { return ETIQUETAS_FILTRO[campo] || 'Escribe para buscar...'; }
 
-let campoFiltroEquipo = 'descripcion';
-function elegirFiltro(campo, boton) {
-  campoFiltroEquipo = campo;
-  document.querySelectorAll('#filtro-tabs .tab-btn').forEach(b => b.classList.remove('activo'));
-  boton.classList.add('activo');
-  const input = document.getElementById('input-equipo');
-  input.value = '';
-  if (!input.disabled) input.placeholder = textoPlaceholderFiltro(campo);
+// Columnas de la pestaña "VIDA UTIL" (letra -> índice base 1)
+const COL_VIDA_UTIL = {
+  DENOMINACION: 3,  // C
+  VIDA_UTIL: 9,      // I
+};
+
+const COL = {
+  CODIGO_PATRIMONIAL: 1,
+  CODIGO_BARRAS: 2,
+  DESCRIPCION: 3,
+  SEDE: 4,
+  FECHA_ALTA: 5,   // E — fecha real de alta del equipo
+  VIGENCIA: 6,     // F — texto "X AÑOS Y MESES", esta app SÍ la escribe (no hay fórmula real en la hoja)
+  MARCA: 7,
+  MODELO: 8,
+  SERIE: 9,
+  SERVICIO: 10,
+  ESTADO: 11,
+};
+
+const COL_NUEVAS = {
+  FECHA_REVISION: 'FECHA_ULTIMA_REVISION',
+  TECNICO: 'TECNICO_RESPONSABLE',
+  OBSERVACIONES: 'OBSERVACIONES',
+};
+
+// Cuántos milisegundos tiene un año (usa 365.25 para compensar años bisiestos)
+const MS_POR_ANIO = 365.25 * 24 * 60 * 60 * 1000;
+
+function getHoja_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+  if (!sheet) throw new Error('No se encontró la pestaña "' + CONFIG.SHEET_NAME + '"');
+  return sheet;
 }
 
-configurarCombo('input-equipo', 'opciones-equipo', () => equiposTodos,
-  (eq) => `${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'})`,
-  (equipo) => { origenBusqueda = 'manual'; mostrarEquipo(equipo); },
-  (eq) => eq[campoFiltroEquipo] || ''
-);
-
-let origenBusqueda = 'scan';
-
-/* ---------- Búsqueda global (en TODOS los establecimientos a la vez) ---------- */
-
-/** Trae la lista completa de equipos de la base, sin filtrar por sede. Se pide una sola vez
- *  por carga de página; el filtro por serie/marca/modelo/descripción se hace en el buscador.
- *  Usa la versión liviana del backend (sin calcular vigencia/vida útil de cada equipo) para
- *  que cargue rápido aunque la red tenga miles de equipos. Sin señal, usa la última copia. */
-function cargarEquiposGlobal() {
-  if (equiposTodosGlobal.length > 0) return; // ya está cargada
-  const inputEquipoGlobal = document.getElementById('input-equipo-global');
-  fetch(`${API_URL}?accion=listarTodosLosEquiposLiviano&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        inputEquipoGlobal.placeholder = 'Error: ' + data.error;
-        return;
-      }
-      equiposTodosGlobal = data.equipos || [];
-      guardarCacheLista('cache_equipos_global', equiposTodosGlobal);
-      inputEquipoGlobal.disabled = false;
-      inputEquipoGlobal.placeholder = equiposTodosGlobal.length > 0
-        ? textoPlaceholderFiltro(campoFiltroEquipoGlobal)
-        : 'No hay equipos registrados';
-    })
-    .catch(() => {
-      const cache = leerCacheLista('cache_equipos_global');
-      if (cache && cache.length) {
-        equiposTodosGlobal = cache;
-        inputEquipoGlobal.disabled = false;
-        inputEquipoGlobal.placeholder = textoPlaceholderFiltro(campoFiltroEquipoGlobal) + ' (sin conexión, datos guardados)';
-      } else {
-        inputEquipoGlobal.placeholder = 'Sin conexión y sin datos guardados todavía';
-      }
-    });
+/** Crea un menú en la hoja de cálculo para poder ordenar manualmente cuando se quiera,
+ *  además del ordenamiento automático que ya ocurre al registrar un equipo nuevo. */
+function onOpen() {
+  SpreadsheetApp.getUi()
+    .createMenu('⚙️ Equipos Biomédicos')
+    .addItem('Ordenar hoja ahora (Sede → Servicio → Descripción)', 'ordenarHojaManual_')
+    .addItem('Crear/verificar columnas de seguimiento', 'inicializarColumnas')
+    .addToUi();
 }
 
-let campoFiltroEquipoGlobal = 'serie'; // arranca en Serie: el caso más común para buscar en todos lados
-function elegirFiltroGlobal(campo, boton) {
-  campoFiltroEquipoGlobal = campo;
-  document.querySelectorAll('#filtro-tabs-global .tab-btn').forEach(b => b.classList.remove('activo'));
-  boton.classList.add('activo');
-  const input = document.getElementById('input-equipo-global');
-  input.value = '';
-  if (!input.disabled) input.placeholder = textoPlaceholderFiltro(campo);
+/** Versión de ordenarHoja_ pensada para ejecutarse desde el menú de Sheets: además de
+ *  ordenar, limpia la caché y avisa con un mensaje cuando termina. Con ~19,700 filas puede
+ *  tardar unos segundos. */
+function ordenarHojaManual_() {
+  ordenarHoja_();
+  invalidarCache_();
+  SpreadsheetApp.getUi().alert('Listo: la hoja quedó ordenada por Sede → Servicio → Descripción.');
 }
 
-configurarCombo('input-equipo-global', 'opciones-equipo-global', () => equiposTodosGlobal,
-  (eq) => `${eq.descripcion} - ${eq.marca || 'S/M'} (${eq.serie || 'sin serie'}) — 🏥 ${eq.sede || 'SIN SEDE'}`,
-  (equipo) => { origenBusqueda = 'manual'; seleccionarEquipoGlobal(equipo); },
-  (eq) => eq[campoFiltroEquipoGlobal] || ''
-);
+function inicializarColumnas() {
+  const sheet = getHoja_();
+  const lastCol = sheet.getLastColumn();
+  const encabezados = sheet.getRange(CONFIG.FILA_ENCABEZADO, 1, 1, lastCol).getValues()[0];
 
-/** Al elegir un resultado del buscador global (que trae datos livianos), se pide el detalle
- *  completo (vigencia, vida útil, última actualización) SOLO de ese equipo puntual — así el
- *  cálculo pesado no se hace para toda la red, solo para el equipo que sí se va a actualizar. */
-function seleccionarEquipoGlobal(equipoLiviano) {
-  const input = document.getElementById('input-equipo-global');
-  input.disabled = true;
-  const placeholderPrevio = input.placeholder;
-  input.placeholder = 'Cargando equipo...';
-  fetch(`${API_URL}?accion=obtenerEquipoPorFila&fila=${equipoLiviano.fila}&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      input.disabled = false;
-      input.placeholder = placeholderPrevio;
-      if (data.error) {
-        input.placeholder = 'Error: ' + data.error;
-        return;
-      }
-      mostrarEquipo(data);
-    })
-    .catch(() => {
-      input.disabled = false;
-      // Sin señal real: se intenta con lo que ya se tenga guardado por código, si acaso
-      const posible = (equipoLiviano.codigoBarras && buscarEnIndiceLocal(equipoLiviano.codigoBarras)) ||
-        (equipoLiviano.codigoPatrimonial && buscarEnIndiceLocal(equipoLiviano.codigoPatrimonial));
-      if (posible) {
-        mostrarMensaje('msg-scan', '📴 Sin conexión — mostrando la última copia guardada de este equipo.', 'error', true);
-        mostrarEquipo(posible);
-      } else {
-        input.placeholder = 'Sin conexión — intenta de nuevo cuando haya señal';
-      }
-    });
-}
-
-/* ---------- Combos de Sede y Servicio dentro del Paso 2 (actualizar) ---------- */
-configurarCombo('input-sede-editar', 'opciones-sede-editar', () => sedesTodas, (s) => s, (sede) => {
-  document.getElementById('input-sede-editar').value = sede;
-  cargarServiciosParaEditar(sede);
-});
-
-configurarCombo('input-servicio-editar', 'opciones-servicio-editar', () => serviciosEditar, (s) => s, (servicio) => {
-  document.getElementById('input-servicio-editar').value = servicio;
-});
-
-/** Trae la lista de servicios ya usados en una sede, para ofrecerlos como filtro al actualizar.
- *  Sin señal, usa la última copia guardada de esa sede (el campo sigue siendo editable a mano). */
-function cargarServiciosParaEditar(sede) {
-  serviciosEditar = [];
-  if (!sede) return;
-  const claveCache = 'cache_servicios_' + sede;
-  fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      serviciosEditar = data.dependencias || [];
-      guardarCacheLista(claveCache, serviciosEditar);
-    })
-    .catch(() => {
-      serviciosEditar = leerCacheLista(claveCache) || [];
-    });
-}
-
-/* ---------- Vigencia en vivo (vista previa mientras se elige la fecha de alta) ---------- */
-function calcularVigenciaTextoDesde(valorFecha) {
-  // valorFecha viene como "AAAA-MM-DD" de un <input type="date">
-  if (!valorFecha) return null;
-  const partes = valorFecha.split('-').map(Number);
-  const fecha = new Date(partes[0], partes[1] - 1, partes[2]);
-  const hoy = new Date();
-  if (isNaN(fecha.getTime()) || fecha > hoy) return { error: true };
-
-  let años = hoy.getFullYear() - fecha.getFullYear();
-  let meses = hoy.getMonth() - fecha.getMonth();
-  if (hoy.getDate() < fecha.getDate()) meses--;
-  if (meses < 0) { años--; meses += 12; }
-  return { años, meses };
-}
-
-function calcularVigenciaPreviewRegistro() {
-  mostrarVigenciaPreview('reg-fecha-alta', 'reg-vigencia-preview');
-}
-function calcularVigenciaPreviewEditar() {
-  mostrarVigenciaPreview('input-fecha-alta-editar', 'vigencia-preview-editar');
-}
-function mostrarVigenciaPreview(inputId, previewId) {
-  const el = document.getElementById(previewId);
-  const valor = document.getElementById(inputId).value;
-  if (!valor) { el.classList.add('oculto'); return; }
-  const resultado = calcularVigenciaTextoDesde(valor);
-  if (!resultado || resultado.error) {
-    el.textContent = '⚠️ La fecha de alta no puede ser posterior a hoy.';
-    el.className = 'mensaje error';
-  } else {
-    el.textContent = `📅 Vigencia calculada: ${resultado.años} años ${resultado.meses} meses`;
-    el.className = 'mensaje exito';
-  }
-  el.classList.remove('oculto');
-}
-
-/* ---------- Mostrar equipo y actualizar ---------- */
-function mostrarEquipo(equipo) {
-  equipoActual = equipo;
-  document.getElementById('paso-buscar').classList.add('oculto');
-  document.getElementById('paso-actualizar').classList.remove('oculto');
-  document.getElementById('btn-escanear-otro').classList.toggle('oculto', origenBusqueda !== 'scan');
-  document.getElementById('btn-buscar-otro').classList.toggle('oculto', origenBusqueda !== 'manual');
-
-  const vidaUtilExcedida = !!equipo.vidaUtilExcedida;
-  const textoVidaUtil = equipo.vidaUtil !== null && equipo.vidaUtil !== undefined ? equipo.vidaUtil + ' años' : 'No encontrada en catálogo';
-
-  document.getElementById('info-equipo').innerHTML = `
-    <span class="titulo-equipo">${equipo.descripcion}</span>
-    <div class="fila-dato">Código Patrimonial: <b>${equipo.codigoPatrimonial || 'S/D'}</b></div>
-    <div class="fila-dato">Código de Barras: <b>${equipo.codigoBarras || 'S/D'}</b></div>
-    <div class="fila-dato">Sede: <b>${equipo.sede}</b></div>
-    <div class="fila-dato">Servicio: <b>${equipo.dependencia}</b></div>
-    <div class="fila-dato">Vigencia del equipo: <b>${equipo.vigenciaTexto || 'S/D'}</b></div>
-    <div class="fila-dato">Vida útil: <b style="${vidaUtilExcedida ? 'color:var(--rojo);' : ''}">${textoVidaUtil}${vidaUtilExcedida ? ' — EQUIPO EN OBSOLESCENCIA' : ''}</b></div>
-    <div class="fila-dato">Estado actual: <b>${equipo.estadoActual}</b></div>
-  `;
-
-  // --- Bloque de última actualización registrada (historial más reciente, no acumulado) ---
-  const bloqueActualizacion = document.getElementById('bloque-ultima-actualizacion');
-  if (equipo.fechaUltimaActualizacion) {
-    bloqueActualizacion.classList.remove('sin-datos');
-    bloqueActualizacion.innerHTML = `
-      <span class="titulo-bloque">🕓 Última actualización registrada</span>
-      <b>${equipo.fechaUltimaActualizacion}</b>${equipo.ultimoTecnico ? ' — ' + equipo.ultimoTecnico : ''}
-      ${equipo.ultimaObservacion ? `<span class="obs">📝 Observación: ${equipo.ultimaObservacion}</span>` : ''}
-    `;
-  } else {
-    bloqueActualizacion.classList.add('sin-datos');
-    bloqueActualizacion.innerHTML = '🕓 Este equipo aún no registra actualizaciones previas en el sistema.';
-  }
-
-  document.getElementById('input-sede-editar').value = equipo.sede || '';
-  document.getElementById('input-servicio-editar').value = equipo.dependencia || '';
-  document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
-  document.getElementById('input-modelo').value = (equipo.modelo && equipo.modelo !== 'SIN MODELO') ? equipo.modelo : '';
-  document.getElementById('input-serie').value = (equipo.serie && equipo.serie !== 'SIN SERIE') ? equipo.serie : '';
-
-  // Precarga los servicios ya usados en la sede del equipo, para que el combo de Servicio funcione de inmediato
-  cargarServiciosParaEditar(equipo.sede);
-
-  // Fecha de alta: se precarga con la que ya tiene el equipo (equipo.fechaAltaISO = "AAAA-MM-DD")
-  const inputFechaAlta = document.getElementById('input-fecha-alta-editar');
-  inputFechaAlta.value = equipo.fechaAltaISO || '';
-  inputFechaAlta.max = new Date().toISOString().split('T')[0];
-  calcularVigenciaPreviewEditar();
-
-  // El estado actual queda preseleccionado: si solo se va a corregir sede/marca/serie/fecha de
-  // alta, no hace falta volver a tocar el estado para poder guardar.
-  preseleccionarEstadoActual(equipo.estadoActual);
-
-  // Si ya existe una observación previa, se ofrece copiarla en vez de tener que escribirla de nuevo
-  const btnCopiarObs = document.getElementById('btn-copiar-observacion');
-  if (btnCopiarObs) btnCopiarObs.classList.toggle('oculto', !equipo.ultimaObservacion);
-
-  // Guarda este equipo en la copia local del celular, para poder encontrarlo luego sin señal
-  actualizarIndiceLocal([equipo]);
-
-  if (equipo.pendienteSync) {
-    mostrarMensaje('msg-guardar', '⏳ Este equipo tiene un cambio guardado en este celular que todavía no se envió al servidor.', 'error', true);
-  }
-}
-
-function seleccionarEstado(estado, btnClickeado) {
-  estadoSeleccionado = estado;
-  document.querySelectorAll('#paso-actualizar .estado-btn').forEach(b => b.classList.remove('sel'));
-  const boton = btnClickeado || document.querySelector(`#paso-actualizar .estado-btn[data-estado="${estado}"]`);
-  if (boton) boton.classList.add('sel');
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
-  document.getElementById('campo-observacion').classList.toggle('oculto', !requiereObservacion);
-  if (!requiereObservacion) document.getElementById('input-observacion').value = '';
-  validarFormulario();
-}
-
-/** Al abrir un equipo que ya tiene un estado registrado, se deja preseleccionado: así el
- *  técnico no tiene que volver a elegirlo si solo va a corregir sede, marca, serie o fecha de alta. */
-function preseleccionarEstadoActual(estadoActual) {
-  const estadosValidos = ['OPERATIVO', 'OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'];
-  if (!estadosValidos.includes(estadoActual)) return;
-  seleccionarEstado(estadoActual);
-}
-
-/** Copia el motivo de la última actualización registrada, para no tener que escribirlo de nuevo
- *  cuando la razón del estado sigue siendo la misma. */
-function copiarObservacionAnterior() {
-  if (equipoActual && equipoActual.ultimaObservacion) {
-    document.getElementById('input-observacion').value = equipoActual.ultimaObservacion;
-    validarFormulario();
-  }
-}
-
-function validarFormulario() {
-  const tecnico = document.getElementById('select-tecnico').value;
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoSeleccionado);
-  const observacion = document.getElementById('input-observacion').value.trim();
-  const valido = estadoSeleccionado && tecnico && (!requiereObservacion || observacion);
-  document.getElementById('btn-guardar').disabled = !valido;
-}
-
-function guardarActualizacion() {
-  const btn = document.getElementById('btn-guardar');
-  btn.disabled = true;
-  btn.textContent = 'Guardando...';
-
-  const payload = {
-    fila: equipoActual.fila,
-    codigoBarras: equipoActual.codigoBarras,
-    codigoPatrimonial: equipoActual.codigoPatrimonial,
-    estado: estadoSeleccionado,
-    observacion: document.getElementById('input-observacion').value.trim(),
-    tecnico: document.getElementById('select-tecnico').value,
-    sede: document.getElementById('input-sede-editar').value.trim(),
-    servicio: document.getElementById('input-servicio-editar').value.trim(),
-    marca: document.getElementById('input-marca').value.trim(),
-    modelo: document.getElementById('input-modelo').value.trim(),
-    serie: document.getElementById('input-serie').value.trim(),
-    fechaAlta: document.getElementById('input-fecha-alta-editar').value,
-  };
-
-  if (!navigator.onLine) {
-    guardarSinConexion('actualizar', payload);
-    return;
-  }
-
-  fetch(API_URL, {
-    method: 'POST',
-    cache: 'no-store',
-    body: JSON.stringify(payload),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.exito) {
-        mostrarMensaje('msg-guardar', '✅ Datos guardados exitosamente en la base de datos.', 'exito', true);
-        setTimeout(volverAlInicio, 2200);
-      } else {
-        mostrarMensaje('msg-guardar', data.error || 'Error al guardar.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Actualizar equipo';
-      }
-    })
-    .catch(() => {
-      guardarSinConexion('actualizar', payload);
-    });
-}
-
-function reiniciar() {
-  equipoActual = null;
-  estadoSeleccionado = null;
-  codigoParaRegistrar = '';
-  estadoRegistroSeleccionado = null;
-  serviciosEditar = [];
-  document.getElementById('select-tecnico').value = '';
-  document.getElementById('input-sede-editar').value = '';
-  document.getElementById('input-servicio-editar').value = '';
-  document.getElementById('input-marca').value = '';
-  document.getElementById('input-modelo').value = '';
-  document.getElementById('input-serie').value = '';
-  document.getElementById('input-fecha-alta-editar').value = '';
-  document.getElementById('vigencia-preview-editar').classList.add('oculto');
-  document.getElementById('input-observacion').value = '';
-  document.getElementById('campo-observacion').classList.add('oculto');
-  document.getElementById('btn-copiar-observacion').classList.add('oculto');
-  document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
-  document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
-  document.getElementById('btn-ir-registrar').classList.add('oculto');
-  document.getElementById('msg-scan').classList.add('oculto');
-  document.getElementById('bloque-ultima-actualizacion').innerHTML = '';
-
-  document.getElementById('reg-codigo').value = '';
-  document.getElementById('reg-descripcion').value = '';
-  document.getElementById('reg-fecha-alta').value = '';
-  document.getElementById('reg-vigencia-preview').classList.add('oculto');
-  document.getElementById('reg-input-sede').value = '';
-  document.getElementById('reg-servicio').value = '';
-  document.getElementById('reg-marca').value = '';
-  document.getElementById('reg-modelo').value = '';
-  document.getElementById('reg-serie').value = '';
-  document.getElementById('reg-observacion').value = '';
-  document.getElementById('reg-campo-observacion').classList.add('oculto');
-  document.getElementById('reg-tecnico').value = '';
-  document.getElementById('btn-registrar').textContent = 'Registrar equipo';
-  document.getElementById('btn-registrar').disabled = true;
-
-  const inputEquipoGlobal = document.getElementById('input-equipo-global');
-  if (inputEquipoGlobal) inputEquipoGlobal.value = '';
-  cambiarSubtabManual('sede');
-
-  document.getElementById('paso-actualizar').classList.add('oculto');
-  document.getElementById('paso-registrar').classList.add('oculto');
-  document.getElementById('paso-buscar').classList.remove('oculto');
-}
-
-/** Después de guardar, regresa TODO al estado inicial de la app (pestaña de escaneo, sin búsquedas previas) */
-function volverAlInicio() {
-  reiniciar();
-  cambiarTab('scan');
-  sedeSeleccionada = '';
-  equiposTodos = [];
-  document.getElementById('input-sede').value = '';
-  document.getElementById('input-equipo').value = '';
-  document.getElementById('input-equipo').disabled = true;
-  document.getElementById('input-equipo').placeholder = 'Selecciona una sede primero';
-  document.getElementById('bloque-filtro').classList.add('oculto');
-  ultimoCodigoDetectado = null;
-  document.getElementById('btn-capturar').disabled = true;
-  document.getElementById('codigo-en-vivo').classList.add('oculto');
-  const inputManual = document.getElementById('input-codigo-manual');
-  if (inputManual) inputManual.value = '';
-  if (lectorInstancia) {
-    try { lectorInstancia.resume(); } catch (e) {}
-  }
-  cargarEstadisticas(); // el equipo recién guardado puede haber cambiado el % global
-}
-
-/* ---------- Registrar equipo nuevo ---------- */
-configurarCombo('reg-input-sede', 'reg-opciones-sede', () => sedesTodas, (s) => s, (sede) => {
-  document.getElementById('reg-input-sede').value = sede;
-});
-
-/** Abre el registro desde el flujo de escaneo (ya trae un código detectado que no existe en la BBDD) */
-function abrirRegistro() {
-  document.getElementById('paso-buscar').classList.add('oculto');
-  document.getElementById('paso-registrar').classList.remove('oculto');
-  document.getElementById('reg-codigo').value = codigoParaRegistrar;
-  document.getElementById('reg-codigo-opcional').textContent = '';
-  if (sedesTodas.length === 0) cargarSedes();
-}
-
-/** Abre el registro desde la búsqueda manual, cuando el equipo tampoco aparece en el listado
- *  de la sede elegida. No hay código detectado, así que el campo queda vacío y editable
- *  (el técnico puede escribirlo si lo tiene a la mano, o dejarlo en blanco). */
-function abrirRegistroDesdeManual() {
-  codigoParaRegistrar = '';
-  document.getElementById('paso-buscar').classList.add('oculto');
-  document.getElementById('paso-registrar').classList.remove('oculto');
-  document.getElementById('reg-codigo').value = '';
-  document.getElementById('reg-codigo-opcional').textContent = '(déjalo en blanco si no tiene código de barras ni patrimonial)';
-  if (sedesTodas.length === 0) cargarSedes();
-  if (sedeSeleccionada) {
-    document.getElementById('reg-input-sede').value = sedeSeleccionada;
-  }
-}
-
-function seleccionarEstadoRegistro(estado, btnClickeado) {
-  estadoRegistroSeleccionado = estado;
-  const botones = document.querySelectorAll('#paso-registrar .estado-btn');
-  botones.forEach(b => b.classList.remove('sel'));
-  const boton = btnClickeado || document.querySelector(`#paso-registrar .estado-btn[data-estado="${estado}"]`);
-  if (boton) boton.classList.add('sel');
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
-  document.getElementById('reg-campo-observacion').classList.toggle('oculto', !requiereObservacion);
-  if (!requiereObservacion) document.getElementById('reg-observacion').value = '';
-  validarFormularioRegistro();
-}
-
-function validarFormularioRegistro() {
-  const descripcion = document.getElementById('reg-descripcion').value.trim();
-  const fechaAlta = document.getElementById('reg-fecha-alta').value;
-  const fechaAltaValida = fechaAlta && new Date(fechaAlta) <= new Date();
-  const tecnico = document.getElementById('reg-tecnico').value;
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoRegistroSeleccionado);
-  const observacion = document.getElementById('reg-observacion').value.trim();
-  const valido = descripcion && fechaAltaValida && tecnico && (!requiereObservacion || observacion);
-  document.getElementById('btn-registrar').disabled = !valido;
-}
-
-function registrarEquipo() {
-  const btn = document.getElementById('btn-registrar');
-  btn.disabled = true;
-  btn.textContent = 'Registrando...';
-
-  const tipoCodigo = document.getElementById('reg-tipo-codigo').value;
-  const codigo = document.getElementById('reg-codigo').value.trim();
-
-  const payload = {
-    accion: 'registrar',
-    codigoBarras: tipoCodigo === 'barras' ? codigo : '',
-    codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
-    descripcion: document.getElementById('reg-descripcion').value.trim(),
-    fechaAlta: document.getElementById('reg-fecha-alta').value,
-    sede: document.getElementById('reg-input-sede').value.trim(),
-    servicio: document.getElementById('reg-servicio').value.trim(),
-    marca: document.getElementById('reg-marca').value.trim(),
-    modelo: document.getElementById('reg-modelo').value.trim(),
-    serie: document.getElementById('reg-serie').value.trim(),
-    estado: estadoRegistroSeleccionado || 'OPERATIVO',
-    observacion: document.getElementById('reg-observacion').value.trim(),
-    tecnico: document.getElementById('reg-tecnico').value,
-  };
-
-  if (!navigator.onLine) {
-    guardarSinConexion('registrar', payload);
-    return;
-  }
-
-  fetch(API_URL, {
-    method: 'POST',
-    cache: 'no-store',
-    body: JSON.stringify(payload),
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (data.exito) {
-        mostrarMensaje('msg-registrar', '✅ Equipo registrado exitosamente en la base de datos.', 'exito', true);
-        setTimeout(volverAlInicio, 2200);
-      } else {
-        mostrarMensaje('msg-registrar', data.error || 'Error al registrar.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Registrar equipo';
-      }
-    })
-    .catch(() => {
-      guardarSinConexion('registrar', payload);
-    });
-}
-
-function mostrarMensaje(id, texto, tipo, persistente) {
-  const el = document.getElementById(id);
-  el.textContent = texto;
-  el.className = 'mensaje ' + tipo;
-  el.classList.remove('oculto');
-  if (!persistente) {
-    setTimeout(() => el.classList.add('oculto'), 4000);
-  }
-}
-
-/** Trae y pinta el % global de equipos con al menos una actualización registrada.
- *  Sin señal, muestra el último dato guardado en este celular. */
-function cargarEstadisticas() {
-  fetch(`${API_URL}?accion=estadisticas&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        document.getElementById('stats-detalle').textContent = 'No se pudo cargar el porcentaje.';
-        return;
-      }
-      document.getElementById('stats-porcentaje').textContent = data.porcentaje + '%';
-      document.getElementById('stats-barra-relleno').style.width = Math.min(data.porcentaje, 100) + '%';
-      document.getElementById('stats-detalle').textContent =
-        `${data.actualizados} de ${data.totalEquipos} equipos con al menos una actualización registrada`;
-      guardarCacheLista('cache_estadisticas', data);
-    })
-    .catch(() => {
-      const cache = leerCacheLista('cache_estadisticas');
-      if (cache) {
-        document.getElementById('stats-porcentaje').textContent = cache.porcentaje + '%';
-        document.getElementById('stats-barra-relleno').style.width = Math.min(cache.porcentaje, 100) + '%';
-        document.getElementById('stats-detalle').textContent =
-          `${cache.actualizados} de ${cache.totalEquipos} equipos (dato guardado, sin conexión)`;
-      } else {
-        document.getElementById('stats-detalle').textContent = 'Sin conexión — no se pudo cargar el porcentaje.';
-      }
-    });
-}
-
-// La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
-// Las sedes y estadísticas sí se precargan en segundo plano para que la app abra ya lista.
-cargarSedes();
-cargarEstadisticas();
-actualizarIndicadorConexion();
-actualizarIndicadorPendientes();
-if (navigator.onLine) sincronizarPendientes(false); // por si quedaron cambios pendientes de una sesión anterior
-
-window.addEventListener('online', () => { actualizarIndicadorConexion(); sincronizarPendientes(false); });
-window.addEventListener('offline', actualizarIndicadorConexion);
-
-// Ninguna fecha de alta puede ser futura
-(function limitarFechasAHoy() {
-  const hoy = new Date().toISOString().split('T')[0];
-  const regFecha = document.getElementById('reg-fecha-alta');
-  if (regFecha) regFecha.max = hoy;
-})();
-
-/* Todo lo que el técnico escriba en estos campos se convierte a mayúscula automáticamente */
-function forzarMayusculas(id) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.addEventListener('input', () => {
-    const inicio = el.selectionStart, fin = el.selectionEnd;
-    el.value = el.value.toUpperCase();
-    try { el.setSelectionRange(inicio, fin); } catch (e) {}
+  const nombresNuevos = [
+    COL_NUEVAS.FECHA_REVISION,
+    COL_NUEVAS.TECNICO,
+    COL_NUEVAS.OBSERVACIONES,
+  ];
+  let col = lastCol;
+  nombresNuevos.forEach(function (nombre) {
+    if (encabezados.indexOf(nombre) === -1) {
+      col++;
+      sheet.getRange(CONFIG.FILA_ENCABEZADO, col).setValue(nombre);
+    }
   });
+  SpreadsheetApp.getUi().alert('Columnas creadas/verificadas correctamente.');
 }
-[
-  'input-marca', 'input-modelo', 'input-serie', 'input-sede-editar', 'input-servicio-editar', 'input-observacion',
-  'input-codigo-manual', 'reg-codigo',
-  'reg-descripcion', 'reg-servicio', 'reg-marca', 'reg-modelo', 'reg-serie', 'reg-observacion',
-].forEach(forzarMayusculas);
-</script>
 
-</body>
-</html>
+/** Devuelve el índice de la columna por nombre. Si no existe, la CREA automáticamente (autorreparable). */
+function indiceColumnaNueva_(sheet, nombreColumna) {
+  const lastCol = sheet.getLastColumn();
+  const encabezados = sheet.getRange(CONFIG.FILA_ENCABEZADO, 1, 1, lastCol).getValues()[0];
+  const idx = encabezados.indexOf(nombreColumna);
+  if (idx !== -1) return idx + 1;
+
+  const nuevaCol = lastCol + 1;
+  sheet.getRange(CONFIG.FILA_ENCABEZADO, nuevaCol).setValue(nombreColumna);
+  return nuevaCol;
+}
+
+/** Quita ceros a la izquierda de códigos puramente numéricos (029777 -> 29777), para que
+ *  no importe si el escáner o la etiqueta física trae ceros de más. Los códigos con letras
+ *  u otros caracteres se dejan intactos. */
+function normalizarCodigo_(valor) {
+  const str = (valor || '').toString().trim();
+  if (/^\d+$/.test(str)) return str.replace(/^0+(?=\d)/, '');
+  return str;
+}
+
+/* ================= CACHÉ (helpers genéricos, con chunking para objetos grandes) ================= */
+
+const TAM_CHUNK = 90000; // bytes por entrada de caché (límite real de CacheService es 100KB)
+const CACHE_MAX_CHUNKS = 300; // seguro de tamaño, no debería alcanzarse
+
+/** Guarda cualquier valor serializable en la caché, partiéndolo en trozos si hace falta. */
+function guardarJsonEnCache_(prefijo, valor) {
+  const cache = CacheService.getScriptCache();
+  const json = JSON.stringify(valor);
+  const chunks = [];
+  for (let i = 0; i < json.length; i += TAM_CHUNK) chunks.push(json.substring(i, i + TAM_CHUNK));
+  if (chunks.length > CACHE_MAX_CHUNKS) return;
+
+  const paquete = {};
+  chunks.forEach(function (c, i) { paquete[prefijo + '_' + i] = c; });
+  paquete[prefijo + '_n'] = String(chunks.length);
+  try { cache.putAll(paquete, CONFIG.CACHE_TTL_SEGUNDOS); } catch (e) {}
+}
+
+/** Lee y reconstruye un valor previamente guardado con guardarJsonEnCache_. Devuelve null
+ *  si no hay caché válida (para que el llamador decida si reconstruir desde la hoja). */
+function leerJsonDeCache_(prefijo) {
+  const cache = CacheService.getScriptCache();
+  const numChunks = cache.get(prefijo + '_n');
+  if (!numChunks) return null;
+
+  const claves = [];
+  for (let i = 0; i < Number(numChunks); i++) claves.push(prefijo + '_' + i);
+  const partes = cache.getAll(claves);
+  let json = '';
+  for (let i = 0; i < claves.length; i++) {
+    if (!partes[claves[i]]) return null;
+    json += partes[claves[i]];
+  }
+  try { return JSON.parse(json); } catch (e) { return null; }
+}
+
+function invalidarPrefijoCache_(prefijo) {
+  const cache = CacheService.getScriptCache();
+  const numChunks = cache.get(prefijo + '_n');
+  const claves = [prefijo + '_n'];
+  if (numChunks) {
+    for (let i = 0; i < Number(numChunks); i++) claves.push(prefijo + '_' + i);
+  }
+  cache.removeAll(claves);
+}
+
+// v5: la vigencia se lee desde una fecha de alta REAL (columna E).
+const CACHE_PREFIJO = 'indice_v5';                 // índice completo (para listar por sede/global)
+const CACHE_PREFIJO_CODIGOS = 'indice_codigos_v1'; // índice liviano: código normalizado -> fila
+const CACHE_ESTADISTICAS = 'estadisticas_v1';      // { totalEquipos, actualizados, porcentaje }
+
+// Posiciones dentro de cada arreglo del índice completo (más liviano que usar objetos)
+const IDX = {
+  FILA: 0, COD_PAT: 1, COD_BAR: 2, DESC: 3, SEDE: 4,
+  FECHA_ALTA: 5, MARCA: 6, MODELO: 7, SERIE: 8, SERVICIO: 9, ESTADO: 10,
+  FECHA_REVISION: 11, TECNICO: 12, OBSERVACIONES: 13,
+};
+
+/** Índice completo de todos los equipos (para listar por sede, listar global y como respaldo
+ *  del porcentaje). Es el más caro de construir; por eso buscarPorCodigo_ y las estadísticas
+ *  ya NO dependen de él en el camino normal. */
+function obtenerIndice_() {
+  const cacheado = leerJsonDeCache_(CACHE_PREFIJO);
+  if (cacheado) return cacheado;
+
+  const sheet = getHoja_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  // Las columnas de metadata (fecha/técnico/observación) se crean dinámicamente
+  // al final de la hoja, así que hay que ubicarlas por nombre antes de leer.
+  const colFecha = indiceColumnaNueva_(sheet, COL_NUEVAS.FECHA_REVISION);
+  const colTecnico = indiceColumnaNueva_(sheet, COL_NUEVAS.TECNICO);
+  const colObservaciones = indiceColumnaNueva_(sheet, COL_NUEVAS.OBSERVACIONES);
+  const ultimaColumna = Math.max(COL.ESTADO, colFecha, colTecnico, colObservaciones);
+
+  const datos = sheet.getRange(2, 1, lastRow - 1, ultimaColumna).getValues();
+  const indice = [];
+  for (let i = 0; i < datos.length; i++) {
+    const fila = datos[i];
+    if (fila[COL.DESCRIPCION - 1]) {
+      indice.push([
+        i + 2,
+        fila[COL.CODIGO_PATRIMONIAL - 1],
+        fila[COL.CODIGO_BARRAS - 1],
+        fila[COL.DESCRIPCION - 1],
+        fila[COL.SEDE - 1],
+        fila[COL.FECHA_ALTA - 1] ? new Date(fila[COL.FECHA_ALTA - 1]).getTime() : '',
+        fila[COL.MARCA - 1],
+        fila[COL.MODELO - 1],
+        fila[COL.SERIE - 1],
+        fila[COL.SERVICIO - 1],
+        fila[COL.ESTADO - 1],
+        fila[colFecha - 1] ? new Date(fila[colFecha - 1]).getTime() : '',
+        fila[colTecnico - 1] || '',
+        fila[colObservaciones - 1] || '',
+      ]);
+    }
+  }
+
+  guardarJsonEnCache_(CACHE_PREFIJO, indice);
+  return indice;
+}
+
+/** Índice liviano código -> número de fila (solo columnas A:C). Mucho más barato de construir
+ *  y de leer que el índice completo, así que buscar por código nunca tiene que esperar a que
+ *  se reconstruya el índice pesado de 19,700 filas. */
+function obtenerIndiceCodigos_() {
+  const cacheado = leerJsonDeCache_(CACHE_PREFIJO_CODIGOS);
+  if (cacheado) return cacheado;
+
+  const sheet = getHoja_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+
+  const datos = sheet.getRange(2, 1, lastRow - 1, COL.DESCRIPCION).getValues(); // solo A:C
+  const mapa = {};
+  for (let i = 0; i < datos.length; i++) {
+    const fila = datos[i];
+    if (!fila[COL.DESCRIPCION - 1]) continue;
+    const filaNum = i + 2;
+    const codPat = normalizarCodigo_(fila[COL.CODIGO_PATRIMONIAL - 1]);
+    const codBar = normalizarCodigo_(fila[COL.CODIGO_BARRAS - 1]);
+    if (codPat) mapa[codPat] = filaNum;
+    if (codBar) mapa[codBar] = filaNum;
+  }
+
+  guardarJsonEnCache_(CACHE_PREFIJO_CODIGOS, mapa);
+  return mapa;
+}
+
+/** Limpieza TOTAL: se usa desde el botón "Actualizar sistema" y desde el menú de la hoja,
+ *  cuando se quiere forzar que todo se reconstruya de cero. */
+function invalidarCache_() {
+  invalidarPrefijoCache_(CACHE_PREFIJO);
+  invalidarPrefijoCache_(CACHE_PREFIJO_CODIGOS);
+  CacheService.getScriptCache().remove(CACHE_ESTADISTICAS);
+}
+
+/** Se usa tras registrar un equipo nuevo: como la hoja se reordena, los números de fila de
+ *  todos los equipos pueden cambiar, así que el índice completo y el de códigos ya no sirven.
+ *  Las estadísticas NO se invalidan aquí: se ajustan aparte, en memoria, sin recalcular todo. */
+function invalidarIndicesPorReordenamiento_() {
+  invalidarPrefijoCache_(CACHE_PREFIJO);
+  invalidarPrefijoCache_(CACHE_PREFIJO_CODIGOS);
+}
+
+/* ================= VIGENCIA (edad del equipo, calculada desde la fecha de alta REAL) ================= */
+
+/** Años transcurridos (decimal) desde la fecha de alta del equipo */
+function calcularVigenciaDesdeAlta_(fechaAltaTimestamp) {
+  if (!fechaAltaTimestamp) return null;
+  const diffMs = Date.now() - fechaAltaTimestamp;
+  if (diffMs < 0) return 0;
+  return diffMs / MS_POR_ANIO;
+}
+
+/** Convierte años (decimal) en texto "X AÑOS Y MESES" — siempre con ambas partes, en mayúscula,
+ *  igual al formato que ya usa la columna F de la hoja (ej: "13 AÑOS 2 MESES"). */
+function formatVigenciaTexto_(aniosDecimal) {
+  if (aniosDecimal === null || aniosDecimal === undefined) return 'S/D';
+  let anios = Math.floor(aniosDecimal);
+  let meses = Math.round((aniosDecimal - anios) * 12);
+  if (meses === 12) { meses = 0; anios += 1; }
+  return anios + ' AÑOS ' + meses + ' MESES';
+}
+
+/* ================= VIDA ÚTIL (pestaña "VIDA UTIL") ================= */
+
+const CACHE_VIDA_UTIL = 'vida_util_v1';
+
+/** Devuelve un objeto { DENOMINACION_EN_MAYUSCULAS: vidaUtilEnAños } */
+function obtenerMapaVidaUtil_() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get(CACHE_VIDA_UTIL);
+  if (guardado) {
+    try { return JSON.parse(guardado); } catch (e) {}
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getSheetByName(CONFIG.SHEET_NAME_VIDA_UTIL);
+  if (!hoja) return {};
+
+  const lastRow = hoja.getLastRow();
+  if (lastRow < 2) return {};
+
+  const datos = hoja.getRange(2, 1, lastRow - 1, COL_VIDA_UTIL.VIDA_UTIL).getValues();
+  const mapa = {};
+  datos.forEach(function (fila) {
+    const denominacion = (fila[COL_VIDA_UTIL.DENOMINACION - 1] || '').toString().trim().toUpperCase();
+    const vidaUtil = fila[COL_VIDA_UTIL.VIDA_UTIL - 1];
+    if (denominacion && vidaUtil !== '' && vidaUtil !== null) {
+      mapa[denominacion] = vidaUtil;
+    }
+  });
+
+  try {
+    cache.put(CACHE_VIDA_UTIL, JSON.stringify(mapa), CONFIG.CACHE_TTL_SEGUNDOS);
+  } catch (e) {
+    // si el catálogo es muy grande para cachear, simplemente no se cachea
+  }
+  return mapa;
+}
+
+/** Busca la vida útil de un equipo comparando su descripción contra el catálogo */
+function buscarVidaUtil_(descripcionEquipo) {
+  if (!descripcionEquipo) return null;
+  const mapa = obtenerMapaVidaUtil_();
+  const desc = descripcionEquipo.toString().trim().toUpperCase();
+
+  // 1. Coincidencia exacta
+  if (mapa[desc] !== undefined) return mapa[desc];
+
+  // 2. Coincidencia parcial (la descripción contiene la denominación, o viceversa)
+  let mejorCoincidencia = null;
+  let mejorLongitud = 0;
+  Object.keys(mapa).forEach(function (denominacion) {
+    if (desc.indexOf(denominacion) !== -1 || denominacion.indexOf(desc) !== -1) {
+      if (denominacion.length > mejorLongitud) {
+        mejorLongitud = denominacion.length;
+        mejorCoincidencia = mapa[denominacion];
+      }
+    }
+  });
+  return mejorCoincidencia;
+}
+
+/* ================= ENDPOINTS ================= */
+
+function doGet(e) {
+  try {
+    const accion = e.parameter.accion;
+    let resultado;
+
+    if (accion === 'buscarPorCodigo') {
+      resultado = buscarPorCodigo_(e.parameter.codigo);
+    } else if (accion === 'listarSedes') {
+      resultado = listarSedes_();
+    } else if (accion === 'listarDependencias') {
+      resultado = listarServicios_(e.parameter.sede);
+    } else if (accion === 'listarEquipos') {
+      resultado = listarEquipos_(e.parameter.sede, e.parameter.dependencia);
+    } else if (accion === 'listarSedeCompleta') {
+      resultado = listarSedeCompleta_(e.parameter.sede, e.parameter.dependencia);
+    } else if (accion === 'listarTodosLosEquiposLiviano') {
+      resultado = listarTodosLosEquiposLiviano_();
+    } else if (accion === 'obtenerEquipoPorFila') {
+      resultado = obtenerEquipoPorFila_(e.parameter.fila);
+    } else if (accion === 'estadisticas') {
+      resultado = obtenerEstadisticasGlobales_();
+    } else if (accion === 'limpiarCache') {
+      invalidarCache_();
+      resultado = { ok: true, mensaje: 'Caché limpiada.' };
+    } else {
+      resultado = { error: 'Acción no reconocida' };
+    }
+    return respuestaJson_(resultado);
+  } catch (err) {
+    return respuestaJson_({ error: err.message });
+  }
+}
+
+function doPost(e) {
+  try {
+    const datos = JSON.parse(e.postData.contents);
+    let resultado;
+    if (datos.accion === 'registrar') {
+      resultado = registrarEquipo_(datos);
+    } else {
+      resultado = actualizarEstado_(datos);
+    }
+    return respuestaJson_(resultado);
+  } catch (err) {
+    return respuestaJson_({ error: err.message });
+  }
+}
+
+function respuestaJson_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* ================= BÚSQUEDA ================= */
+
+/** Busca un equipo por código de barras o patrimonial. Usa el índice liviano (solo código ->
+ *  fila) y después lee ESA UNA fila directo de la hoja — nunca carga ni espera el índice
+ *  pesado de 19,700 filas, así que es rápida incluso justo después de una actualización. */
+function buscarPorCodigo_(codigo) {
+  if (!codigo) return { error: 'Código vacío' };
+  const codigoStr = codigo.toString().trim();
+  const codigoNormalizado = normalizarCodigo_(codigoStr);
+
+  const mapaCodigos = obtenerIndiceCodigos_();
+  const fila = mapaCodigos[codigoNormalizado] || mapaCodigos[codigoStr];
+
+  if (!fila) {
+    return { error: 'No se encontró ningún equipo con ese código en la base de datos.', noEncontrado: true, codigo: codigoStr };
+  }
+
+  return obtenerEquipoPorFila_(fila);
+}
+
+function listarSedes_() {
+  const indice = obtenerIndice_();
+  const sedes = new Set();
+  indice.forEach(function (eq) {
+    const sede = (eq[IDX.SEDE] || '').toString().trim();
+    if (sede) sedes.add(sede);
+  });
+  return { sedes: Array.from(sedes).sort() };
+}
+
+function listarServicios_(sede) {
+  const indice = obtenerIndice_();
+  const servicios = new Set();
+  indice.forEach(function (eq) {
+    if ((eq[IDX.SEDE] || '').toString().trim() === sede) {
+      const servicio = (eq[IDX.SERVICIO] || '').toString().trim();
+      if (servicio) servicios.add(servicio);
+    }
+  });
+  return { dependencias: Array.from(servicios).sort() };
+}
+
+function listarEquipos_(sede, servicio) {
+  const indice = obtenerIndice_();
+  const equipos = indice
+    .filter(function (eq) {
+      const coincideSede = (eq[IDX.SEDE] || '').toString().trim() === sede;
+      const coincideServicio = !servicio || (eq[IDX.SERVICIO] || '').toString().trim() === servicio;
+      return coincideSede && coincideServicio;
+    })
+    .map(equipoAObjetoRespuesta_);
+  return { equipos: equipos };
+}
+
+/** Trae servicios y equipos de una sede en UNA sola llamada (evita dos viajes al servidor) */
+function listarSedeCompleta_(sede, servicio) {
+  const indice = obtenerIndice_();
+  const servicios = new Set();
+  const equipos = [];
+
+  indice.forEach(function (eq) {
+    if ((eq[IDX.SEDE] || '').toString().trim() !== sede) return;
+    const servicioEq = (eq[IDX.SERVICIO] || '').toString().trim();
+    if (servicioEq) servicios.add(servicioEq);
+    if (!servicio || servicioEq === servicio) {
+      equipos.push(equipoAObjetoRespuesta_(eq));
+    }
+  });
+
+  return { dependencias: Array.from(servicios).sort(), equipos: equipos };
+}
+
+/** Todos los equipos de la base, SIN filtrar por sede y SIN calcular vigencia/vida útil —
+ *  esa parte es la más pesada de equipoAObjetoRespuesta_ (compara cada equipo contra el
+ *  catálogo "VIDA UTIL"), y no hace falta para poblar un buscador. Solo trae lo necesario
+ *  para mostrar y filtrar resultados: descripción, marca, modelo, serie, sede y estado.
+ *  Cuando el técnico elige uno, se pide el detalle completo con obtenerEquipoPorFila_. */
+function listarTodosLosEquiposLiviano_() {
+  const indice = obtenerIndice_();
+  const equipos = indice.map(function (eq) {
+    return {
+      fila: eq[IDX.FILA],
+      codigoPatrimonial: eq[IDX.COD_PAT],
+      codigoBarras: eq[IDX.COD_BAR],
+      descripcion: eq[IDX.DESC],
+      sede: eq[IDX.SEDE],
+      dependencia: eq[IDX.SERVICIO],
+      marca: eq[IDX.MARCA],
+      modelo: eq[IDX.MODELO],
+      serie: eq[IDX.SERIE],
+      estadoActual: eq[IDX.ESTADO],
+    };
+  });
+  return { equipos: equipos };
+}
+
+/** Detalle completo (vigencia, vida útil, última actualización) de UN equipo puntual,
+ *  ubicado por su número de fila. Lee esa única fila directo de la hoja: no depende del
+ *  índice completo ni de su estado de caché, así que siempre es rápido y siempre trae el
+ *  dato más fresco (útil justo después de buscar por código o de actualizar el equipo). */
+function obtenerEquipoPorFila_(filaParam) {
+  const fila = Number(filaParam);
+  if (!fila) return { error: 'Fila inválida.' };
+
+  const sheet = getHoja_();
+  if (fila < 2 || fila > sheet.getLastRow()) {
+    return { error: 'No se encontró el equipo. Prueba "Actualizar sistema" y vuelve a intentar.' };
+  }
+
+  const colFecha = indiceColumnaNueva_(sheet, COL_NUEVAS.FECHA_REVISION);
+  const colTecnico = indiceColumnaNueva_(sheet, COL_NUEVAS.TECNICO);
+  const colObservaciones = indiceColumnaNueva_(sheet, COL_NUEVAS.OBSERVACIONES);
+  const ultimaColumna = Math.max(COL.ESTADO, colFecha, colTecnico, colObservaciones);
+
+  const valores = sheet.getRange(fila, 1, 1, ultimaColumna).getValues()[0];
+  if (!valores[COL.DESCRIPCION - 1]) {
+    return { error: 'No se encontró el equipo. Prueba "Actualizar sistema" y vuelve a intentar.' };
+  }
+
+  const eq = [
+    fila,
+    valores[COL.CODIGO_PATRIMONIAL - 1],
+    valores[COL.CODIGO_BARRAS - 1],
+    valores[COL.DESCRIPCION - 1],
+    valores[COL.SEDE - 1],
+    valores[COL.FECHA_ALTA - 1] ? new Date(valores[COL.FECHA_ALTA - 1]).getTime() : '',
+    valores[COL.MARCA - 1],
+    valores[COL.MODELO - 1],
+    valores[COL.SERIE - 1],
+    valores[COL.SERVICIO - 1],
+    valores[COL.ESTADO - 1],
+    valores[colFecha - 1] ? new Date(valores[colFecha - 1]).getTime() : '',
+    valores[colTecnico - 1] || '',
+    valores[colObservaciones - 1] || '',
+  ];
+  return equipoAObjetoRespuesta_(eq);
+}
+
+/** % de equipos que ya tienen al menos una actualización registrada. Vive en su propia
+ *  caché chica: la inmensa mayoría de las veces esto es solo un cache.get() de un objeto
+ *  pequeño, sin tocar el índice pesado de 19,700 filas para nada. */
+function obtenerEstadisticasGlobales_() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get(CACHE_ESTADISTICAS);
+  if (guardado) {
+    try { return JSON.parse(guardado); } catch (e) {}
+  }
+
+  const indice = obtenerIndice_();
+  const total = indice.length;
+  let actualizados = 0;
+  indice.forEach(function (eq) { if (eq[IDX.FECHA_REVISION]) actualizados++; });
+  const porcentaje = total > 0 ? Math.round((actualizados / total) * 1000) / 10 : 0;
+  const resultado = { totalEquipos: total, actualizados: actualizados, porcentaje: porcentaje };
+
+  try { cache.put(CACHE_ESTADISTICAS, JSON.stringify(resultado), CONFIG.CACHE_TTL_SEGUNDOS); } catch (e) {}
+  return resultado;
+}
+
+/** Se llama justo después de la PRIMERA actualización de un equipo (antes no tenía ninguna):
+ *  suma 1 al contador de "actualizados" en la caché chica, sin releer toda la hoja. Si la
+ *  caché de estadísticas no existe todavía, no hace nada — la próxima consulta la arma sola. */
+function incrementarActualizadosEnEstadisticas_() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get(CACHE_ESTADISTICAS);
+  if (!guardado) return;
+  try {
+    const stats = JSON.parse(guardado);
+    stats.actualizados += 1;
+    stats.porcentaje = stats.totalEquipos > 0 ? Math.round((stats.actualizados / stats.totalEquipos) * 1000) / 10 : 0;
+    cache.put(CACHE_ESTADISTICAS, JSON.stringify(stats), CONFIG.CACHE_TTL_SEGUNDOS);
+  } catch (e) {}
+}
+
+/** Igual que la anterior, pero para cuando se registra un equipo nuevo: suma 1 al total Y 1 a
+ *  los actualizados (un equipo recién registrado ya queda con fecha de revisión desde el inicio). */
+function incrementarTotalYActualizadosEnEstadisticas_() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get(CACHE_ESTADISTICAS);
+  if (!guardado) return;
+  try {
+    const stats = JSON.parse(guardado);
+    stats.totalEquipos += 1;
+    stats.actualizados += 1;
+    stats.porcentaje = stats.totalEquipos > 0 ? Math.round((stats.actualizados / stats.totalEquipos) * 1000) / 10 : 0;
+    cache.put(CACHE_ESTADISTICAS, JSON.stringify(stats), CONFIG.CACHE_TTL_SEGUNDOS);
+  } catch (e) {}
+}
+
+function equipoAObjetoRespuesta_(eq) {
+  const timestamp = eq[IDX.FECHA_REVISION];
+  const fechaAltaTs = eq[IDX.FECHA_ALTA];
+
+  // La vigencia (edad del equipo) se calcula en vivo a partir de la fecha de alta real,
+  // así que avanza sola con los días sin que nadie tenga que tocar nada.
+  let vigenciaAnios = null;
+  let vigenciaTexto = 'S/D';
+  let fechaAltaISO = '';
+
+  if (fechaAltaTs) {
+    vigenciaAnios = calcularVigenciaDesdeAlta_(fechaAltaTs);
+    vigenciaTexto = formatVigenciaTexto_(vigenciaAnios);
+    fechaAltaISO = Utilities.formatDate(new Date(fechaAltaTs), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+
+  const vidaUtil = buscarVidaUtil_(eq[IDX.DESC]);
+  const vidaUtilExcedida = vidaUtil !== null && vidaUtil !== undefined &&
+    vigenciaAnios !== null && vigenciaAnios >= vidaUtil;
+
+  return {
+    fila: eq[IDX.FILA],
+    codigoPatrimonial: eq[IDX.COD_PAT],
+    codigoBarras: eq[IDX.COD_BAR],
+    descripcion: eq[IDX.DESC],
+    sede: eq[IDX.SEDE],
+    dependencia: eq[IDX.SERVICIO],
+    marca: eq[IDX.MARCA],
+    modelo: eq[IDX.MODELO],
+    serie: eq[IDX.SERIE],
+    ubicacion: eq[IDX.SERVICIO],
+    estadoActual: eq[IDX.ESTADO],
+    vidaUtil: vidaUtil,
+    vidaUtilExcedida: vidaUtilExcedida,
+    fechaAltaISO: fechaAltaISO,           // yyyy-MM-dd, para precargar el <input type="date">
+    vigenciaAnios: vigenciaAnios,          // número decimal, ej: 3.42
+    vigenciaTexto: vigenciaTexto,          // texto legible, ej: "3 años 5 meses"
+    fechaUltimaActualizacion: timestamp
+      ? Utilities.formatDate(new Date(timestamp), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm')
+      : '',
+    ultimoTecnico: eq[IDX.TECNICO] || '',
+    ultimaObservacion: eq[IDX.OBSERVACIONES] || '',
+  };
+}
+
+/* ================= ACTUALIZACIÓN ================= */
+
+function actualizarEstado_(datos) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+
+  try {
+    const sheet = getHoja_();
+    const fila = Number(datos.fila);
+    if (!fila) throw new Error('Fila inválida');
+
+    const estadoRequiereObservacion = datos.estado === 'OPERATIVO PARCIALMENTE' ||
+      datos.estado === 'INOPERATIVO' || datos.estado === 'DE BAJA';
+    if (estadoRequiereObservacion && !(datos.observacion || '').toString().trim()) {
+      return { error: 'Debes indicar el motivo cuando el estado es Parcial, Inoperativo o Baja.' };
+    }
+
+    // Las columnas D (Sede) a K (Estado) son contiguas: se leen y se escriben en UN solo
+    // bloque en vez de una llamada por columna — esto era lo que más demoraba al actualizar.
+    const rangoPrincipal = sheet.getRange(fila, COL.SEDE, 1, COL.ESTADO - COL.SEDE + 1); // D:K
+    const valores = rangoPrincipal.getValues()[0];
+    // Posiciones dentro de "valores", relativas a la columna SEDE
+    const R = {
+      SEDE: COL.SEDE - COL.SEDE,
+      FECHA_ALTA: COL.FECHA_ALTA - COL.SEDE,
+      VIGENCIA: COL.VIGENCIA - COL.SEDE,
+      MARCA: COL.MARCA - COL.SEDE,
+      MODELO: COL.MODELO - COL.SEDE,
+      SERIE: COL.SERIE - COL.SEDE,
+      SERVICIO: COL.SERVICIO - COL.SEDE,
+      ESTADO: COL.ESTADO - COL.SEDE,
+    };
+
+    if (typeof datos.sede === 'string' && datos.sede) valores[R.SEDE] = datos.sede;
+    if (typeof datos.marca === 'string') valores[R.MARCA] = datos.marca;
+    if (typeof datos.modelo === 'string') valores[R.MODELO] = datos.modelo;
+    if (typeof datos.serie === 'string') valores[R.SERIE] = datos.serie;
+    if (typeof datos.servicio === 'string') valores[R.SERVICIO] = datos.servicio;
+    valores[R.ESTADO] = datos.estado;
+
+    // Fecha de alta: se guarda directamente en la columna E (fuente de verdad). Si el técnico
+    // no tocó el campo, se usa la que ya estaba (leída arriba) para recalcular la vigencia igual.
+    let fechaAltaEfectivaMs = null;
+    if (typeof datos.fechaAlta === 'string' && datos.fechaAlta.trim()) {
+      const fechaAltaDate = new Date(datos.fechaAlta + 'T00:00:00');
+      if (!isNaN(fechaAltaDate.getTime())) {
+        valores[R.FECHA_ALTA] = fechaAltaDate;
+        fechaAltaEfectivaMs = fechaAltaDate.getTime();
+      }
+    }
+    if (fechaAltaEfectivaMs === null) {
+      const existente = valores[R.FECHA_ALTA];
+      if (existente instanceof Date && !isNaN(existente.getTime())) fechaAltaEfectivaMs = existente.getTime();
+    }
+    // La columna F (VIGENCIA) no tiene fórmula real en la hoja: esta app la escribe directamente
+    // cada vez que se actualiza el equipo, para que quede sincronizada con la fecha de alta.
+    if (fechaAltaEfectivaMs !== null) {
+      valores[R.VIGENCIA] = formatVigenciaTexto_(calcularVigenciaDesdeAlta_(fechaAltaEfectivaMs));
+    }
+
+    rangoPrincipal.setValues([valores]); // UNA sola escritura para las 8 columnas
+
+    // Metadata (fecha de revisión, técnico, observaciones): si alguna columna falla, no debe
+    // tumbar el guardado de lo esencial de arriba.
+    let esPrimeraRevision = false;
+    try {
+      const colFecha = indiceColumnaNueva_(sheet, COL_NUEVAS.FECHA_REVISION);
+      const colTecnico = indiceColumnaNueva_(sheet, COL_NUEVAS.TECNICO);
+      const colObservaciones = indiceColumnaNueva_(sheet, COL_NUEVAS.OBSERVACIONES);
+
+      const fechaRevisionPrevia = sheet.getRange(fila, colFecha).getValue();
+      esPrimeraRevision = !fechaRevisionPrevia;
+
+      // Si las 3 columnas quedaron contiguas (lo normal, por cómo se crean), se escriben en
+      // un solo bloque; si no, se escriben una por una (caso raro, pero queda cubierto).
+      if (colTecnico === colFecha + 1 && colObservaciones === colTecnico + 1) {
+        sheet.getRange(fila, colFecha, 1, 3).setValues([[new Date(), datos.tecnico || '', datos.observacion || '']]);
+      } else {
+        sheet.getRange(fila, colFecha).setValue(new Date());
+        sheet.getRange(fila, colTecnico).setValue(datos.tecnico || '');
+        sheet.getRange(fila, colObservaciones).setValue(datos.observacion || '');
+      }
+    } catch (errMeta) {
+      // No interrumpe el guardado principal
+    }
+
+    // El índice completo (pesado) YA NO se invalida aquí: los códigos de este equipo no
+    // cambian en este flujo, así que buscarPorCodigo_ sigue funcionando rápido igual. El
+    // índice completo se deja vencer solo (10 min) — solo lo usan los listados por
+    // sede/global, que toleran unos minutos de datos desactualizados.
+    if (esPrimeraRevision) incrementarActualizadosEnEstadisticas_();
+
+    return { exito: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Registra un equipo nuevo cuando su código no existe en la base */
+function registrarEquipo_(datos) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+
+  try {
+    const estadoRequiereObservacion = datos.estado === 'OPERATIVO PARCIALMENTE' ||
+      datos.estado === 'INOPERATIVO' || datos.estado === 'DE BAJA';
+    if (estadoRequiereObservacion && !(datos.observacion || '').toString().trim()) {
+      return { error: 'Debes indicar el motivo cuando el estado es Parcial, Inoperativo o Baja.' };
+    }
+
+    const fechaAltaStr = (datos.fechaAlta || '').toString().trim();
+    if (!fechaAltaStr) {
+      return { error: 'Debes indicar la fecha de alta del equipo.' };
+    }
+    const fechaAltaDate = new Date(fechaAltaStr + 'T00:00:00');
+    if (isNaN(fechaAltaDate.getTime())) {
+      return { error: 'La fecha de alta ingresada no es válida.' };
+    }
+
+    const sheet = getHoja_();
+    const lastCol = sheet.getLastColumn();
+    const fila = new Array(lastCol).fill('');
+
+    fila[COL.CODIGO_PATRIMONIAL - 1] = datos.codigoPatrimonial || '';
+    fila[COL.CODIGO_BARRAS - 1] = datos.codigoBarras || '';
+    fila[COL.DESCRIPCION - 1] = datos.descripcion || '';
+    fila[COL.SEDE - 1] = datos.sede || '';
+    fila[COL.FECHA_ALTA - 1] = fechaAltaDate;
+    // La columna F no tiene fórmula real en la hoja: se calcula y se guarda aquí mismo.
+    fila[COL.VIGENCIA - 1] = formatVigenciaTexto_(calcularVigenciaDesdeAlta_(fechaAltaDate.getTime()));
+    fila[COL.MARCA - 1] = datos.marca || '';
+    fila[COL.MODELO - 1] = datos.modelo || '';
+    fila[COL.SERIE - 1] = datos.serie || '';
+    fila[COL.SERVICIO - 1] = datos.servicio || '';
+    fila[COL.ESTADO - 1] = datos.estado || 'OPERATIVO';
+
+    const colFecha = indiceColumnaNueva_(sheet, COL_NUEVAS.FECHA_REVISION);
+    const colTecnico = indiceColumnaNueva_(sheet, COL_NUEVAS.TECNICO);
+    const colObservaciones = indiceColumnaNueva_(sheet, COL_NUEVAS.OBSERVACIONES);
+    fila[colFecha - 1] = new Date();
+    fila[colTecnico - 1] = datos.tecnico || '';
+    fila[colObservaciones - 1] = datos.observacion || '';
+
+    sheet.appendRow(fila);
+    ordenarHoja_();
+
+    // Como el reordenamiento puede cambiar el número de fila de TODOS los equipos, el índice
+    // completo y el de códigos ya no sirven y hay que invalidarlos. Las estadísticas, en
+    // cambio, se pueden ajustar en memoria sin recalcular todo.
+    invalidarIndicesPorReordenamiento_();
+    incrementarTotalYActualizadosEnEstadisticas_();
+
+    return { exito: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** Ordena toda la hoja BBDD por Sede → Servicio → Descripción. Se llama después de registrar
+ *  un equipo nuevo para que quede ubicado junto a los demás equipos de su mismo
+ *  establecimiento/servicio, en vez de quedar pegado al final de la hoja. */
+function ordenarHoja_() {
+  const sheet = getHoja_();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 3) return; // solo encabezado (o una sola fila de datos): nada que ordenar
+  const rango = sheet.getRange(2, 1, lastRow - 1, lastCol);
+  rango.sort([
+    { column: COL.SEDE, ascending: true },
+    { column: COL.SERVICIO, ascending: true },
+    { column: COL.DESCRIPCION, ascending: true },
+  ]);
+}
