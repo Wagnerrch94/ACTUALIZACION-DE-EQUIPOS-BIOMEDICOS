@@ -212,6 +212,15 @@
   .stats-barra { width: 100%; height: 8px; border-radius: 6px; background: var(--fondo); overflow: hidden; }
   .stats-barra-relleno { height: 100%; width: 0%; background: var(--primario); border-radius: 6px; transition: width 0.4s ease; }
   .stats-detalle { margin-top: 6px; font-size: 12px; color: var(--texto-suave); }
+
+  /* Estado de conexión y cambios pendientes de sincronizar (modo sin señal) */
+  .conexion-fila { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 8px; }
+  .indicador-conexion { font-size: 12px; font-weight: 700; color: var(--verde); }
+  .indicador-conexion.sin-conexion { color: var(--rojo); }
+  .indicador-pendientes {
+    font-size: 11.5px; font-weight: 700; color: var(--ambar); background: var(--ambar-claro);
+    padding: 3px 9px; border-radius: 20px; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -238,7 +247,7 @@
 
 <div class="contenedor">
 
-  <!-- % global de equipos actualizados (siempre visible en la pantalla inicial) -->
+  <!-- % global de equipos actualizados + estado de conexión (siempre visible en la pantalla inicial) -->
   <div class="tarjeta tarjeta-stats" id="tarjeta-stats">
     <div class="stats-header">
       <span class="stats-label">📊 Equipos actualizados</span>
@@ -246,6 +255,11 @@
     </div>
     <div class="stats-barra"><div class="stats-barra-relleno" id="stats-barra-relleno"></div></div>
     <div class="stats-detalle" id="stats-detalle">Cargando...</div>
+    <div class="conexion-fila">
+      <span id="indicador-conexion" class="indicador-conexion">🟢 En línea</span>
+      <span id="indicador-pendientes" class="indicador-pendientes oculto"></span>
+    </div>
+    <button type="button" class="btn-secundario oculto" id="btn-sincronizar" onclick="sincronizarPendientes(true)">🔄 Sincronizar cambios pendientes</button>
   </div>
 
   <!-- Paso 1: identificar el equipo -->
@@ -356,17 +370,18 @@
     <input type="date" id="input-fecha-alta-editar" oninput="calcularVigenciaPreviewEditar()" onchange="calcularVigenciaPreviewEditar()">
     <div id="vigencia-preview-editar" class="mensaje oculto"></div>
 
-    <label>Estado del equipo</label>
+    <label>Estado del equipo <span class="opcional">ya viene marcado con el estado actual; cámbialo solo si es necesario</span></label>
     <div class="estado-opciones">
-      <button class="estado-btn op" onclick="seleccionarEstado('OPERATIVO')">✅ Operativo</button>
-      <button class="estado-btn parcial" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE')">⚠️ Parcial</button>
-      <button class="estado-btn inop" onclick="seleccionarEstado('INOPERATIVO')">⛔ Inoperativo</button>
-      <button class="estado-btn baja" onclick="seleccionarEstado('DE BAJA')">🗑️ Baja</button>
+      <button class="estado-btn op" data-estado="OPERATIVO" onclick="seleccionarEstado('OPERATIVO', this)">✅ Operativo</button>
+      <button class="estado-btn parcial" data-estado="OPERATIVO PARCIALMENTE" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE', this)">⚠️ Parcial</button>
+      <button class="estado-btn inop" data-estado="INOPERATIVO" onclick="seleccionarEstado('INOPERATIVO', this)">⛔ Inoperativo</button>
+      <button class="estado-btn baja" data-estado="DE BAJA" onclick="seleccionarEstado('DE BAJA', this)">🗑️ Baja</button>
     </div>
 
     <div id="campo-observacion" class="oculto">
       <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
       <input type="text" id="input-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormulario()">
+      <button type="button" class="btn-secundario oculto" id="btn-copiar-observacion" onclick="copiarObservacionAnterior()">📋 Usar el mismo motivo de la última actualización</button>
     </div>
 
     <label>Técnico</label>
@@ -432,10 +447,10 @@
 
     <label>Estado inicial</label>
     <div class="estado-opciones">
-      <button class="estado-btn op" onclick="seleccionarEstadoRegistro('OPERATIVO')">✅ Operativo</button>
-      <button class="estado-btn parcial" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE')">⚠️ Parcial</button>
-      <button class="estado-btn inop" onclick="seleccionarEstadoRegistro('INOPERATIVO')">⛔ Inoperativo</button>
-      <button class="estado-btn baja" onclick="seleccionarEstadoRegistro('DE BAJA')">🗑️ Baja</button>
+      <button class="estado-btn op" data-estado="OPERATIVO" onclick="seleccionarEstadoRegistro('OPERATIVO', this)">✅ Operativo</button>
+      <button class="estado-btn parcial" data-estado="OPERATIVO PARCIALMENTE" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE', this)">⚠️ Parcial</button>
+      <button class="estado-btn inop" data-estado="INOPERATIVO" onclick="seleccionarEstadoRegistro('INOPERATIVO', this)">⛔ Inoperativo</button>
+      <button class="estado-btn baja" data-estado="DE BAJA" onclick="seleccionarEstadoRegistro('DE BAJA', this)">🗑️ Baja</button>
     </div>
 
     <div id="reg-campo-observacion" class="oculto">
@@ -491,6 +506,151 @@ let equiposTodosGlobal = []; // igual, pero de TODOS los establecimientos (búsq
 let serviciosEditar = []; // servicios disponibles para la sede que se está editando en Paso 2
 
 let sedeSeleccionada = '';
+
+/* ================================================================
+   MODO SIN CONEXIÓN
+   - Cada vez que se trae información del servidor con éxito, se guarda
+     una copia en este celular (localStorage).
+   - Si falla una búsqueda por falta de señal, se usa esa copia.
+   - Si falla un guardado (actualizar o registrar) por falta de señal,
+     el cambio se guarda en una "cola" en este celular y se envía solo
+     apenas vuelva la conexión (o al presionar "Sincronizar ahora").
+   ================================================================ */
+const CACHE_INDICE_KEY = 'cache_indice_equipos_v1'; // equipos ya vistos, buscables por código
+const COLA_KEY = 'cola_pendientes_v1'; // cambios guardados sin conexión, pendientes de enviar
+
+function guardarCacheLista(clave, lista) {
+  try { localStorage.setItem(clave, JSON.stringify(lista)); } catch (e) {}
+}
+function leerCacheLista(clave) {
+  try { return JSON.parse(localStorage.getItem(clave) || 'null'); } catch (e) { return null; }
+}
+
+/** Agrega/actualiza equipos en el índice local por código de barras y código patrimonial,
+ *  para poder encontrarlos luego aunque no haya señal. */
+function actualizarIndiceLocal(equipos) {
+  if (!equipos || !equipos.length) return;
+  let indice = {};
+  try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) { indice = {}; }
+  equipos.forEach(eq => {
+    if (eq.codigoBarras) indice[eq.codigoBarras.toString().trim().toUpperCase()] = eq;
+    if (eq.codigoPatrimonial) indice[eq.codigoPatrimonial.toString().trim().toUpperCase()] = eq;
+  });
+  try { localStorage.setItem(CACHE_INDICE_KEY, JSON.stringify(indice)); } catch (e) {}
+}
+function buscarEnIndiceLocal(codigo) {
+  let indice = {};
+  try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) { return null; }
+  return indice[codigo.toString().trim().toUpperCase()] || null;
+}
+
+function actualizarIndicadorConexion() {
+  const el = document.getElementById('indicador-conexion');
+  if (!el) return;
+  if (navigator.onLine) {
+    el.textContent = '🟢 En línea';
+    el.classList.remove('sin-conexion');
+  } else {
+    el.textContent = '🔴 Sin conexión — se guardará en el celular';
+    el.classList.add('sin-conexion');
+  }
+}
+
+function leerCola() {
+  try { return JSON.parse(localStorage.getItem(COLA_KEY) || '[]'); } catch (e) { return []; }
+}
+function guardarCola(cola) {
+  try { localStorage.setItem(COLA_KEY, JSON.stringify(cola)); } catch (e) {}
+  actualizarIndicadorPendientes();
+}
+function encolarPendiente(tipo, payload) {
+  const cola = leerCola();
+  cola.push({ id: Date.now() + '-' + Math.random().toString(36).slice(2), tipo, payload });
+  guardarCola(cola);
+}
+function actualizarIndicadorPendientes() {
+  const cola = leerCola();
+  const el = document.getElementById('indicador-pendientes');
+  const btn = document.getElementById('btn-sincronizar');
+  if (!el || !btn) return;
+  if (cola.length > 0) {
+    el.textContent = `⏳ ${cola.length} sin enviar`;
+    el.classList.remove('oculto');
+    btn.classList.remove('oculto');
+  } else {
+    el.classList.add('oculto');
+    btn.classList.add('oculto');
+  }
+}
+
+/** Guarda un cambio (actualización o registro) que no se pudo enviar por falta de señal.
+ *  No se pierde: queda en este celular y se envía apenas vuelva la conexión. */
+function guardarSinConexion(tipo, payload) {
+  encolarPendiente(tipo, payload);
+
+  // Refleja el cambio en la copia local, para que si se vuelve a buscar este mismo equipo
+  // sin señal, ya se vean los datos más recientes (aunque el servidor aún no los tenga).
+  const codigoIndice = (payload.codigoBarras || payload.codigoPatrimonial || '').toString().trim().toUpperCase();
+  if (codigoIndice) {
+    let indice = {};
+    try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) {}
+    const previo = indice[codigoIndice] || {};
+    const actualizado = Object.assign({}, previo, {
+      descripcion: previo.descripcion || payload.descripcion,
+      codigoBarras: payload.codigoBarras || previo.codigoBarras,
+      codigoPatrimonial: payload.codigoPatrimonial || previo.codigoPatrimonial,
+      estadoActual: payload.estado,
+      sede: payload.sede,
+      dependencia: payload.servicio,
+      marca: payload.marca,
+      modelo: payload.modelo,
+      serie: payload.serie,
+      ultimaObservacion: payload.observacion,
+      ultimoTecnico: payload.tecnico,
+      pendienteSync: true,
+    });
+    if (payload.codigoBarras) indice[payload.codigoBarras.toString().trim().toUpperCase()] = actualizado;
+    if (payload.codigoPatrimonial) indice[payload.codigoPatrimonial.toString().trim().toUpperCase()] = actualizado;
+    try { localStorage.setItem(CACHE_INDICE_KEY, JSON.stringify(indice)); } catch (e) {}
+  }
+
+  const idMsg = tipo === 'registrar' ? 'msg-registrar' : 'msg-guardar';
+  mostrarMensaje(idMsg, '📴 Sin conexión: se guardó en este celular y se enviará solo apenas vuelva la señal.', 'exito', true);
+  setTimeout(volverAlInicio, 2200);
+}
+
+/** Envía uno por uno los cambios guardados en este celular mientras no había señal.
+ *  Se detiene apenas uno falla, para no perder el orden — el siguiente intento
+ *  retomará desde ahí (automático al volver la conexión, o manual con el botón). */
+function sincronizarPendientes(manual) {
+  const cola = leerCola();
+  if (cola.length === 0) {
+    if (manual) mostrarMensaje('msg-guardar', 'No hay cambios pendientes por enviar.', 'exito');
+    return;
+  }
+  if (!navigator.onLine) {
+    if (manual) mostrarMensaje('msg-guardar', 'Sigues sin conexión — se enviará automáticamente cuando vuelva la señal.', 'error');
+    return;
+  }
+
+  const item = cola[0];
+  fetch(API_URL, { method: 'POST', cache: 'no-store', body: JSON.stringify(item.payload) })
+    .then(r => r.json())
+    .then(data => {
+      if (data.exito) {
+        const restante = leerCola();
+        restante.shift();
+        guardarCola(restante);
+        cargarEstadisticas();
+        sincronizarPendientes(false); // sigue con el siguiente pendiente, si hay
+      } else if (manual) {
+        mostrarMensaje('msg-guardar', 'No se pudo sincronizar: ' + (data.error || 'error desconocido'), 'error');
+      }
+    })
+    .catch(() => {
+      if (manual) mostrarMensaje('msg-guardar', 'Sigue sin haber conexión real. Se reintentará más tarde.', 'error');
+    });
+}
 
 /* ---------- Tabs ---------- */
 function cambiarTab(tab) {
@@ -582,7 +742,15 @@ function buscarCodigoManual() {
 }
 
 function buscarPorCodigo(codigo, alTerminar) {
-  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigo)}&_ts=${Date.now()}`, { cache: 'no-store' })
+  const codigoNormalizado = codigo.toString().trim();
+
+  // Sin señal: ni se intenta la llamada al servidor, se busca directo en la copia local
+  if (!navigator.onLine) {
+    buscarPorCodigoOffline(codigoNormalizado, alTerminar);
+    return;
+  }
+
+  fetch(`${API_URL}?accion=buscarPorCodigo&codigo=${encodeURIComponent(codigoNormalizado)}&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
       document.getElementById('codigo-en-vivo').classList.add('oculto');
@@ -590,23 +758,43 @@ function buscarPorCodigo(codigo, alTerminar) {
       if (data.error) {
         if (data.noEncontrado) {
           mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error', true);
-          codigoParaRegistrar = codigo;
+          codigoParaRegistrar = codigoNormalizado;
           document.getElementById('btn-ir-registrar').classList.remove('oculto');
         } else {
-          mostrarMensaje('msg-scan', `Código "${codigo}" — ${data.error}`, 'error', true);
+          mostrarMensaje('msg-scan', `Código "${codigoNormalizado}" — ${data.error}`, 'error', true);
         }
         if (alTerminar) setTimeout(alTerminar, 500);
       } else {
         document.getElementById('btn-ir-registrar').classList.add('oculto');
         origenBusqueda = 'scan';
+        actualizarIndiceLocal([data]);
         mostrarEquipo(data);
         if (alTerminar) setTimeout(alTerminar, 300);
       }
     })
     .catch(() => {
-      mostrarMensaje('msg-scan', 'Error de conexión.', 'error');
-      if (alTerminar) setTimeout(alTerminar, 300);
+      // El navegador puede creer que hay señal (wifi hospitalario sin salida real a internet);
+      // si la llamada de verdad falla, se intenta igual con la copia guardada en el celular.
+      buscarPorCodigoOffline(codigoNormalizado, alTerminar);
     });
+}
+
+/** Busca el código en la copia local guardada en este celular (equipos ya vistos antes).
+ *  No reemplaza a la base de datos real, pero permite seguir trabajando sin señal. */
+function buscarPorCodigoOffline(codigoNormalizado, alTerminar) {
+  document.getElementById('codigo-en-vivo').classList.add('oculto');
+  ultimoCodigoDetectado = null;
+  const encontrado = buscarEnIndiceLocal(codigoNormalizado);
+  if (encontrado) {
+    mostrarMensaje('msg-scan', '📴 Sin conexión — mostrando la última copia guardada de este equipo en el celular.', 'error', true);
+    origenBusqueda = 'scan';
+    mostrarEquipo(encontrado);
+  } else {
+    mostrarMensaje('msg-scan', '📴 Sin conexión y este código no está guardado en el celular todavía. Puedes registrarlo como nuevo y se enviará al volver la señal.', 'error', true);
+    codigoParaRegistrar = codigoNormalizado;
+    document.getElementById('btn-ir-registrar').classList.remove('oculto');
+  }
+  if (alTerminar) setTimeout(alTerminar, 400);
 }
 
 /** Vuelve directo a la pestaña de escaneo y reanuda la cámara si estaba pausada */
@@ -672,6 +860,11 @@ function cargarSedes() {
     .then(r => r.json())
     .then(data => {
       sedesTodas = data.sedes || [];
+      guardarCacheLista('cache_sedes', sedesTodas);
+    })
+    .catch(() => {
+      const cache = leerCacheLista('cache_sedes');
+      if (cache && cache.length) sedesTodas = cache;
     });
 }
 
@@ -690,10 +883,12 @@ function seleccionarSede(sede) {
   cargarEquiposDeSede();
 }
 
-/** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador) */
+/** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador).
+ *  Si falla por falta de señal, usa la última copia guardada de esa sede en este celular. */
 function cargarEquiposDeSede() {
   if (!sedeSeleccionada) return;
   const inputEquipo = document.getElementById('input-equipo');
+  const claveCache = 'cache_equipos_sede_' + sedeSeleccionada;
   fetch(`${API_URL}?accion=listarEquipos&sede=${encodeURIComponent(sedeSeleccionada)}&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
@@ -702,13 +897,22 @@ function cargarEquiposDeSede() {
         return;
       }
       equiposTodos = data.equipos || [];
+      guardarCacheLista(claveCache, equiposTodos);
+      actualizarIndiceLocal(equiposTodos);
       inputEquipo.disabled = false;
       inputEquipo.placeholder = equiposTodos.length > 0
         ? textoPlaceholderFiltro(campoFiltroEquipo)
         : 'No se encontraron equipos en esta sede';
     })
     .catch(() => {
-      inputEquipo.placeholder = 'Error de conexión — intenta de nuevo';
+      const cache = leerCacheLista(claveCache);
+      if (cache && cache.length) {
+        equiposTodos = cache;
+        inputEquipo.disabled = false;
+        inputEquipo.placeholder = textoPlaceholderFiltro(campoFiltroEquipo) + ' (sin conexión, datos guardados)';
+      } else {
+        inputEquipo.placeholder = 'Sin conexión y sin datos guardados de esta sede';
+      }
     });
 }
 
@@ -743,7 +947,7 @@ let origenBusqueda = 'scan';
 /** Trae la lista completa de equipos de la base, sin filtrar por sede. Se pide una sola vez
  *  por carga de página; el filtro por serie/marca/modelo/descripción se hace en el buscador.
  *  Usa la versión liviana del backend (sin calcular vigencia/vida útil de cada equipo) para
- *  que cargue rápido aunque la red tenga miles de equipos. */
+ *  que cargue rápido aunque la red tenga miles de equipos. Sin señal, usa la última copia. */
 function cargarEquiposGlobal() {
   if (equiposTodosGlobal.length > 0) return; // ya está cargada
   const inputEquipoGlobal = document.getElementById('input-equipo-global');
@@ -755,13 +959,21 @@ function cargarEquiposGlobal() {
         return;
       }
       equiposTodosGlobal = data.equipos || [];
+      guardarCacheLista('cache_equipos_global', equiposTodosGlobal);
       inputEquipoGlobal.disabled = false;
       inputEquipoGlobal.placeholder = equiposTodosGlobal.length > 0
         ? textoPlaceholderFiltro(campoFiltroEquipoGlobal)
         : 'No hay equipos registrados';
     })
     .catch(() => {
-      inputEquipoGlobal.placeholder = 'Error de conexión — intenta de nuevo';
+      const cache = leerCacheLista('cache_equipos_global');
+      if (cache && cache.length) {
+        equiposTodosGlobal = cache;
+        inputEquipoGlobal.disabled = false;
+        inputEquipoGlobal.placeholder = textoPlaceholderFiltro(campoFiltroEquipoGlobal) + ' (sin conexión, datos guardados)';
+      } else {
+        inputEquipoGlobal.placeholder = 'Sin conexión y sin datos guardados todavía';
+      }
     });
 }
 
@@ -802,7 +1014,15 @@ function seleccionarEquipoGlobal(equipoLiviano) {
     })
     .catch(() => {
       input.disabled = false;
-      input.placeholder = 'Error de conexión — intenta de nuevo';
+      // Sin señal real: se intenta con lo que ya se tenga guardado por código, si acaso
+      const posible = (equipoLiviano.codigoBarras && buscarEnIndiceLocal(equipoLiviano.codigoBarras)) ||
+        (equipoLiviano.codigoPatrimonial && buscarEnIndiceLocal(equipoLiviano.codigoPatrimonial));
+      if (posible) {
+        mostrarMensaje('msg-scan', '📴 Sin conexión — mostrando la última copia guardada de este equipo.', 'error', true);
+        mostrarEquipo(posible);
+      } else {
+        input.placeholder = 'Sin conexión — intenta de nuevo cuando haya señal';
+      }
     });
 }
 
@@ -816,14 +1036,21 @@ configurarCombo('input-servicio-editar', 'opciones-servicio-editar', () => servi
   document.getElementById('input-servicio-editar').value = servicio;
 });
 
-/** Trae la lista de servicios ya usados en una sede, para ofrecerlos como filtro al actualizar */
+/** Trae la lista de servicios ya usados en una sede, para ofrecerlos como filtro al actualizar.
+ *  Sin señal, usa la última copia guardada de esa sede (el campo sigue siendo editable a mano). */
 function cargarServiciosParaEditar(sede) {
   serviciosEditar = [];
   if (!sede) return;
+  const claveCache = 'cache_servicios_' + sede;
   fetch(`${API_URL}?accion=listarDependencias&sede=${encodeURIComponent(sede)}&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
-    .then(data => { serviciosEditar = data.dependencias || []; })
-    .catch(() => { serviciosEditar = []; });
+    .then(data => {
+      serviciosEditar = data.dependencias || [];
+      guardarCacheLista(claveCache, serviciosEditar);
+    })
+    .catch(() => {
+      serviciosEditar = leerCacheLista(claveCache) || [];
+    });
 }
 
 /* ---------- Vigencia en vivo (vista previa mientras se elige la fecha de alta) ---------- */
@@ -913,16 +1140,49 @@ function mostrarEquipo(equipo) {
   inputFechaAlta.value = equipo.fechaAltaISO || '';
   inputFechaAlta.max = new Date().toISOString().split('T')[0];
   calcularVigenciaPreviewEditar();
+
+  // El estado actual queda preseleccionado: si solo se va a corregir sede/marca/serie/fecha de
+  // alta, no hace falta volver a tocar el estado para poder guardar.
+  preseleccionarEstadoActual(equipo.estadoActual);
+
+  // Si ya existe una observación previa, se ofrece copiarla en vez de tener que escribirla de nuevo
+  const btnCopiarObs = document.getElementById('btn-copiar-observacion');
+  if (btnCopiarObs) btnCopiarObs.classList.toggle('oculto', !equipo.ultimaObservacion);
+
+  // Guarda este equipo en la copia local del celular, para poder encontrarlo luego sin señal
+  actualizarIndiceLocal([equipo]);
+
+  if (equipo.pendienteSync) {
+    mostrarMensaje('msg-guardar', '⏳ Este equipo tiene un cambio guardado en este celular que todavía no se envió al servidor.', 'error', true);
+  }
 }
 
-function seleccionarEstado(estado) {
+function seleccionarEstado(estado, btnClickeado) {
   estadoSeleccionado = estado;
   document.querySelectorAll('#paso-actualizar .estado-btn').forEach(b => b.classList.remove('sel'));
-  event.target.classList.add('sel');
+  const boton = btnClickeado || document.querySelector(`#paso-actualizar .estado-btn[data-estado="${estado}"]`);
+  if (boton) boton.classList.add('sel');
   const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
   document.getElementById('campo-observacion').classList.toggle('oculto', !requiereObservacion);
   if (!requiereObservacion) document.getElementById('input-observacion').value = '';
   validarFormulario();
+}
+
+/** Al abrir un equipo que ya tiene un estado registrado, se deja preseleccionado: así el
+ *  técnico no tiene que volver a elegirlo si solo va a corregir sede, marca, serie o fecha de alta. */
+function preseleccionarEstadoActual(estadoActual) {
+  const estadosValidos = ['OPERATIVO', 'OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'];
+  if (!estadosValidos.includes(estadoActual)) return;
+  seleccionarEstado(estadoActual);
+}
+
+/** Copia el motivo de la última actualización registrada, para no tener que escribirlo de nuevo
+ *  cuando la razón del estado sigue siendo la misma. */
+function copiarObservacionAnterior() {
+  if (equipoActual && equipoActual.ultimaObservacion) {
+    document.getElementById('input-observacion').value = equipoActual.ultimaObservacion;
+    validarFormulario();
+  }
 }
 
 function validarFormulario() {
@@ -938,23 +1198,30 @@ function guardarActualizacion() {
   btn.disabled = true;
   btn.textContent = 'Guardando...';
 
+  const payload = {
+    fila: equipoActual.fila,
+    codigoBarras: equipoActual.codigoBarras,
+    codigoPatrimonial: equipoActual.codigoPatrimonial,
+    estado: estadoSeleccionado,
+    observacion: document.getElementById('input-observacion').value.trim(),
+    tecnico: document.getElementById('select-tecnico').value,
+    sede: document.getElementById('input-sede-editar').value.trim(),
+    servicio: document.getElementById('input-servicio-editar').value.trim(),
+    marca: document.getElementById('input-marca').value.trim(),
+    modelo: document.getElementById('input-modelo').value.trim(),
+    serie: document.getElementById('input-serie').value.trim(),
+    fechaAlta: document.getElementById('input-fecha-alta-editar').value,
+  };
+
+  if (!navigator.onLine) {
+    guardarSinConexion('actualizar', payload);
+    return;
+  }
+
   fetch(API_URL, {
     method: 'POST',
     cache: 'no-store',
-    body: JSON.stringify({
-      fila: equipoActual.fila,
-      codigoBarras: equipoActual.codigoBarras,
-      codigoPatrimonial: equipoActual.codigoPatrimonial,
-      estado: estadoSeleccionado,
-      observacion: document.getElementById('input-observacion').value.trim(),
-      tecnico: document.getElementById('select-tecnico').value,
-      sede: document.getElementById('input-sede-editar').value.trim(),
-      servicio: document.getElementById('input-servicio-editar').value.trim(),
-      marca: document.getElementById('input-marca').value.trim(),
-      modelo: document.getElementById('input-modelo').value.trim(),
-      serie: document.getElementById('input-serie').value.trim(),
-      fechaAlta: document.getElementById('input-fecha-alta-editar').value,
-    }),
+    body: JSON.stringify(payload),
   })
     .then(r => r.json())
     .then(data => {
@@ -968,9 +1235,7 @@ function guardarActualizacion() {
       }
     })
     .catch(() => {
-      mostrarMensaje('msg-guardar', 'Error de conexión.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Actualizar equipo';
+      guardarSinConexion('actualizar', payload);
     });
 }
 
@@ -990,6 +1255,7 @@ function reiniciar() {
   document.getElementById('vigencia-preview-editar').classList.add('oculto');
   document.getElementById('input-observacion').value = '';
   document.getElementById('campo-observacion').classList.add('oculto');
+  document.getElementById('btn-copiar-observacion').classList.add('oculto');
   document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('sel'));
   document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
   document.getElementById('btn-ir-registrar').classList.add('oculto');
@@ -1071,11 +1337,12 @@ function abrirRegistroDesdeManual() {
   }
 }
 
-function seleccionarEstadoRegistro(estado) {
+function seleccionarEstadoRegistro(estado, btnClickeado) {
   estadoRegistroSeleccionado = estado;
   const botones = document.querySelectorAll('#paso-registrar .estado-btn');
   botones.forEach(b => b.classList.remove('sel'));
-  event.target.classList.add('sel');
+  const boton = btnClickeado || document.querySelector(`#paso-registrar .estado-btn[data-estado="${estado}"]`);
+  if (boton) boton.classList.add('sel');
   const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
   document.getElementById('reg-campo-observacion').classList.toggle('oculto', !requiereObservacion);
   if (!requiereObservacion) document.getElementById('reg-observacion').value = '';
@@ -1101,24 +1368,31 @@ function registrarEquipo() {
   const tipoCodigo = document.getElementById('reg-tipo-codigo').value;
   const codigo = document.getElementById('reg-codigo').value.trim();
 
+  const payload = {
+    accion: 'registrar',
+    codigoBarras: tipoCodigo === 'barras' ? codigo : '',
+    codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
+    descripcion: document.getElementById('reg-descripcion').value.trim(),
+    fechaAlta: document.getElementById('reg-fecha-alta').value,
+    sede: document.getElementById('reg-input-sede').value.trim(),
+    servicio: document.getElementById('reg-servicio').value.trim(),
+    marca: document.getElementById('reg-marca').value.trim(),
+    modelo: document.getElementById('reg-modelo').value.trim(),
+    serie: document.getElementById('reg-serie').value.trim(),
+    estado: estadoRegistroSeleccionado || 'OPERATIVO',
+    observacion: document.getElementById('reg-observacion').value.trim(),
+    tecnico: document.getElementById('reg-tecnico').value,
+  };
+
+  if (!navigator.onLine) {
+    guardarSinConexion('registrar', payload);
+    return;
+  }
+
   fetch(API_URL, {
     method: 'POST',
     cache: 'no-store',
-    body: JSON.stringify({
-      accion: 'registrar',
-      codigoBarras: tipoCodigo === 'barras' ? codigo : '',
-      codigoPatrimonial: tipoCodigo === 'patrimonial' ? codigo : '',
-      descripcion: document.getElementById('reg-descripcion').value.trim(),
-      fechaAlta: document.getElementById('reg-fecha-alta').value,
-      sede: document.getElementById('reg-input-sede').value.trim(),
-      servicio: document.getElementById('reg-servicio').value.trim(),
-      marca: document.getElementById('reg-marca').value.trim(),
-      modelo: document.getElementById('reg-modelo').value.trim(),
-      serie: document.getElementById('reg-serie').value.trim(),
-      estado: estadoRegistroSeleccionado || 'OPERATIVO',
-      observacion: document.getElementById('reg-observacion').value.trim(),
-      tecnico: document.getElementById('reg-tecnico').value,
-    }),
+    body: JSON.stringify(payload),
   })
     .then(r => r.json())
     .then(data => {
@@ -1132,9 +1406,7 @@ function registrarEquipo() {
       }
     })
     .catch(() => {
-      mostrarMensaje('msg-registrar', 'Error de conexión.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Registrar equipo';
+      guardarSinConexion('registrar', payload);
     });
 }
 
@@ -1148,12 +1420,8 @@ function mostrarMensaje(id, texto, tipo, persistente) {
   }
 }
 
-// La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
-// Las sedes sí se precargan en segundo plano para que "Buscar manualmente" abra ya listo.
-cargarSedes();
-cargarEstadisticas();
-
-/** Trae y pinta el % global de equipos con al menos una actualización registrada */
+/** Trae y pinta el % global de equipos con al menos una actualización registrada.
+ *  Sin señal, muestra el último dato guardado en este celular. */
 function cargarEstadisticas() {
   fetch(`${API_URL}?accion=estadisticas&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
@@ -1166,11 +1434,31 @@ function cargarEstadisticas() {
       document.getElementById('stats-barra-relleno').style.width = Math.min(data.porcentaje, 100) + '%';
       document.getElementById('stats-detalle').textContent =
         `${data.actualizados} de ${data.totalEquipos} equipos con al menos una actualización registrada`;
+      guardarCacheLista('cache_estadisticas', data);
     })
     .catch(() => {
-      document.getElementById('stats-detalle').textContent = 'Error de conexión al cargar el porcentaje.';
+      const cache = leerCacheLista('cache_estadisticas');
+      if (cache) {
+        document.getElementById('stats-porcentaje').textContent = cache.porcentaje + '%';
+        document.getElementById('stats-barra-relleno').style.width = Math.min(cache.porcentaje, 100) + '%';
+        document.getElementById('stats-detalle').textContent =
+          `${cache.actualizados} de ${cache.totalEquipos} equipos (dato guardado, sin conexión)`;
+      } else {
+        document.getElementById('stats-detalle').textContent = 'Sin conexión — no se pudo cargar el porcentaje.';
+      }
     });
 }
+
+// La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
+// Las sedes y estadísticas sí se precargan en segundo plano para que la app abra ya lista.
+cargarSedes();
+cargarEstadisticas();
+actualizarIndicadorConexion();
+actualizarIndicadorPendientes();
+if (navigator.onLine) sincronizarPendientes(false); // por si quedaron cambios pendientes de una sesión anterior
+
+window.addEventListener('online', () => { actualizarIndicadorConexion(); sincronizarPendientes(false); });
+window.addEventListener('offline', actualizarIndicadorConexion);
 
 // Ninguna fecha de alta puede ser futura
 (function limitarFechasAHoy() {
