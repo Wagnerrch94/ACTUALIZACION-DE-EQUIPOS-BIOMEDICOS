@@ -118,7 +118,6 @@
 
   button { cursor: pointer; font-weight: 600; font-family: inherit; transition: opacity 0.15s, transform 0.05s, background 0.15s; }
   button:active { transform: scale(0.985); }
-  /* Íconos (emoji) más grandes y amigables dentro de botones */
   .tab-btn, .btn-primario, .btn-secundario, .btn-terciario, .btn-registro, .estado-btn {
     font-size: 1.08em;
   }
@@ -168,7 +167,6 @@
   .equipo-info .fila-dato { color: var(--texto-suave); }
   .equipo-info .fila-dato b { color: var(--texto); font-weight: 600; }
 
-  /* Bloque de "última actualización registrada" (historial más reciente del equipo) */
   .ultima-actualizacion {
     font-size: 13px; line-height: 1.65; background: var(--ambar-claro);
     border: 1px solid #f0dfb0; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px;
@@ -204,7 +202,7 @@
   .combo-opcion:hover, .combo-opcion.activa { background: var(--primario-claro); }
   .combo-vacio { padding: 12px 14px; font-size: 13.5px; color: #9aa6a5; }
 
-  /* Tarjeta de % de equipos actualizados (pantalla inicial) */
+  /* Tarjeta de % de equipos actualizados */
   .tarjeta-stats { padding: 16px 20px; }
   .stats-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
   .stats-label { font-size: 12px; font-weight: 700; letter-spacing: 0.03em; color: var(--texto-suave); }
@@ -213,7 +211,7 @@
   .stats-barra-relleno { height: 100%; width: 0%; background: var(--primario); border-radius: 6px; transition: width 0.4s ease; }
   .stats-detalle { margin-top: 6px; font-size: 12px; color: var(--texto-suave); }
 
-  /* Estado de conexión y cambios pendientes de sincronizar (modo sin señal) */
+  /* Estado de conexión y cambios pendientes */
   .conexion-fila { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 8px; }
   .indicador-conexion { font-size: 12px; font-weight: 700; color: var(--verde); }
   .indicador-conexion.sin-conexion { color: var(--rojo); }
@@ -247,7 +245,7 @@
 
 <div class="contenedor">
 
-  <!-- % global de equipos actualizados + estado de conexión (siempre visible en la pantalla inicial) -->
+  <!-- % global de equipos actualizados + estado de conexión -->
   <div class="tarjeta tarjeta-stats" id="tarjeta-stats">
     <div class="stats-header">
       <span class="stats-label">📊 Equipos actualizados</span>
@@ -342,8 +340,10 @@
     <span class="paso-badge">Paso 2 · Actualizar equipo</span>
     <div class="equipo-info" id="info-equipo"></div>
 
-    <!-- Última actualización registrada para este equipo (fecha, técnico y observación) -->
     <div class="ultima-actualizacion" id="bloque-ultima-actualizacion"></div>
+
+    <label>Nombre del equipo</label>
+    <input type="text" id="input-descripcion-editar" placeholder="Ej: OXIMETRO DE PULSOS ADULTO" oninput="validarFormulario()">
 
     <label>Sede</label>
     <div class="combo">
@@ -375,11 +375,11 @@
       <button class="estado-btn op" data-estado="OPERATIVO" onclick="seleccionarEstado('OPERATIVO', this)">✅ Operativo</button>
       <button class="estado-btn parcial" data-estado="OPERATIVO PARCIALMENTE" onclick="seleccionarEstado('OPERATIVO PARCIALMENTE', this)">⚠️ Parcial</button>
       <button class="estado-btn inop" data-estado="INOPERATIVO" onclick="seleccionarEstado('INOPERATIVO', this)">⛔ Inoperativo</button>
-      <button class="estado-btn baja" data-estado="DE BAJA" onclick="seleccionarEstado('DE BAJA', this)">🗑️ Baja</button>
+      <button class="estado-btn baja" data-estado="REPOSICIÓN" onclick="seleccionarEstado('REPOSICIÓN', this)">🔄 Reposición</button>
     </div>
 
     <div id="campo-observacion" class="oculto">
-      <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
+      <label>Motivo <span class="opcional">(obligatorio para Parcial, Inoperativo o Reposición)</span></label>
       <input type="text" id="input-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormulario()">
       <button type="button" class="btn-secundario oculto" id="btn-copiar-observacion" onclick="copiarObservacionAnterior()">📋 Usar el mismo motivo de la última actualización</button>
     </div>
@@ -450,11 +450,11 @@
       <button class="estado-btn op" data-estado="OPERATIVO" onclick="seleccionarEstadoRegistro('OPERATIVO', this)">✅ Operativo</button>
       <button class="estado-btn parcial" data-estado="OPERATIVO PARCIALMENTE" onclick="seleccionarEstadoRegistro('OPERATIVO PARCIALMENTE', this)">⚠️ Parcial</button>
       <button class="estado-btn inop" data-estado="INOPERATIVO" onclick="seleccionarEstadoRegistro('INOPERATIVO', this)">⛔ Inoperativo</button>
-      <button class="estado-btn baja" data-estado="DE BAJA" onclick="seleccionarEstadoRegistro('DE BAJA', this)">🗑️ Baja</button>
+      <button class="estado-btn baja" data-estado="REPOSICIÓN" onclick="seleccionarEstadoRegistro('REPOSICIÓN', this)">🔄 Reposición</button>
     </div>
 
     <div id="reg-campo-observacion" class="oculto">
-      <label>Motivo <span class="opcional">(obligatorio para Parcial o Inoperativo)</span></label>
+      <label>Motivo <span class="opcional">(obligatorio para Parcial, Inoperativo o Reposición)</span></label>
       <input type="text" id="reg-observacion" placeholder="Ej: pantalla no enciende, falta pieza..." oninput="validarFormularioRegistro()">
     </div>
 
@@ -483,12 +483,13 @@
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbw7kicqcE4cwQhOKqATRItlqBhuRN9Z4lf_a6gUVk2ztUfhAMXZiW6EPuVm_30BQ-dc/exec';
 
-/** Fuerza una recarga real: primero le pide al servidor que limpie su caché de equipos
- *  (por si quedó desactualizada), y recién después recarga la página sin usar nada
- *  guardado en caché del WebView. */
+/** Estados que exigen escribir un motivo */
+const ESTADOS_CON_MOTIVO = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'REPOSICIÓN'];
+
+/** Fuerza una recarga real: limpia la caché del servidor y recarga la página */
 function recargarApp() {
   fetch(`${API_URL}?accion=limpiarCache&_ts=${Date.now()}`, { cache: 'no-store' })
-    .catch(() => {}) // si falla la llamada, igual recargamos la página
+    .catch(() => {})
     .finally(() => {
       const url = window.location.pathname + '?v=' + Date.now();
       window.location.href = url;
@@ -501,23 +502,20 @@ let codigoParaRegistrar = '';
 let estadoRegistroSeleccionado = null;
 
 let sedesTodas = [];
-let equiposTodos = []; // { descripcion, marca, serie, ...datosCompletos } — de la sede elegida
-let equiposTodosGlobal = []; // igual, pero de TODOS los establecimientos (búsqueda global)
-let serviciosEditar = []; // servicios disponibles para la sede que se está editando en Paso 2
+let equiposTodos = [];
+let equiposTodosGlobal = [];
+let serviciosEditar = [];
 
 let sedeSeleccionada = '';
 
 /* ================================================================
    MODO SIN CONEXIÓN
-   - Cada vez que se trae información del servidor con éxito, se guarda
-     una copia en este celular (localStorage).
+   - Se guarda una copia local (localStorage) de lo que se trae del servidor.
    - Si falla una búsqueda por falta de señal, se usa esa copia.
-   - Si falla un guardado (actualizar o registrar) por falta de señal,
-     el cambio se guarda en una "cola" en este celular y se envía solo
-     apenas vuelva la conexión (o al presionar "Sincronizar ahora").
+   - Si falla un guardado, el cambio queda en una cola y se envía al volver la señal.
    ================================================================ */
-const CACHE_INDICE_KEY = 'cache_indice_equipos_v1'; // equipos ya vistos, buscables por código
-const COLA_KEY = 'cola_pendientes_v1'; // cambios guardados sin conexión, pendientes de enviar
+const CACHE_INDICE_KEY = 'cache_indice_equipos_v1';
+const COLA_KEY = 'cola_pendientes_v1';
 
 function guardarCacheLista(clave, lista) {
   try { localStorage.setItem(clave, JSON.stringify(lista)); } catch (e) {}
@@ -526,8 +524,6 @@ function leerCacheLista(clave) {
   try { return JSON.parse(localStorage.getItem(clave) || 'null'); } catch (e) { return null; }
 }
 
-/** Agrega/actualiza equipos en el índice local por código de barras y código patrimonial,
- *  para poder encontrarlos luego aunque no haya señal. */
 function actualizarIndiceLocal(equipos) {
   if (!equipos || !equipos.length) return;
   let indice = {};
@@ -583,20 +579,17 @@ function actualizarIndicadorPendientes() {
   }
 }
 
-/** Guarda un cambio (actualización o registro) que no se pudo enviar por falta de señal.
- *  No se pierde: queda en este celular y se envía apenas vuelva la conexión. */
+/** Guarda un cambio que no se pudo enviar por falta de señal */
 function guardarSinConexion(tipo, payload) {
   encolarPendiente(tipo, payload);
 
-  // Refleja el cambio en la copia local, para que si se vuelve a buscar este mismo equipo
-  // sin señal, ya se vean los datos más recientes (aunque el servidor aún no los tenga).
   const codigoIndice = (payload.codigoBarras || payload.codigoPatrimonial || '').toString().trim().toUpperCase();
   if (codigoIndice) {
     let indice = {};
     try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) {}
     const previo = indice[codigoIndice] || {};
     const actualizado = Object.assign({}, previo, {
-      descripcion: previo.descripcion || payload.descripcion,
+      descripcion: payload.descripcion || previo.descripcion,
       codigoBarras: payload.codigoBarras || previo.codigoBarras,
       codigoPatrimonial: payload.codigoPatrimonial || previo.codigoPatrimonial,
       estadoActual: payload.estado,
@@ -619,9 +612,7 @@ function guardarSinConexion(tipo, payload) {
   setTimeout(volverAlInicio, 2200);
 }
 
-/** Envía uno por uno los cambios guardados en este celular mientras no había señal.
- *  Se detiene apenas uno falla, para no perder el orden — el siguiente intento
- *  retomará desde ahí (automático al volver la conexión, o manual con el botón). */
+/** Envía uno por uno los cambios guardados sin señal; se detiene si uno falla */
 function sincronizarPendientes(manual) {
   const cola = leerCola();
   if (cola.length === 0) {
@@ -642,7 +633,7 @@ function sincronizarPendientes(manual) {
         restante.shift();
         guardarCola(restante);
         cargarEstadisticas();
-        sincronizarPendientes(false); // sigue con el siguiente pendiente, si hay
+        sincronizarPendientes(false);
       } else if (manual) {
         mostrarMensaje('msg-guardar', 'No se pudo sincronizar: ' + (data.error || 'error desconocido'), 'error');
       }
@@ -662,11 +653,8 @@ function cambiarTab(tab) {
   if (tab === 'manual' && sedesTodas.length === 0) {
     cargarSedes();
   }
-  // La cámara ya NO arranca sola: el técnico la inicia con el botón "Iniciar escáner"
 }
 
-/** Sub-pestañas dentro de "Buscar manualmente": por establecimiento (como antes) o
- *  en todos los establecimientos a la vez (para cuando no se sabe dónde quedó el equipo) */
 function cambiarSubtabManual(tab) {
   document.getElementById('subtab-sede').classList.toggle('activo', tab === 'sede');
   document.getElementById('subtab-global').classList.toggle('activo', tab === 'global');
@@ -708,9 +696,7 @@ function iniciarEscaner() {
   });
 }
 
-/** Si el código es puramente numérico, quita los ceros a la izquierda (029777 -> 29777).
- *  Los códigos con letras u otros caracteres se dejan tal cual. El backend también
- *  normaliza al buscar; esto es solo para que lo que se muestra en pantalla ya venga limpio. */
+/** Si el código es numérico, quita los ceros a la izquierda (029777 -> 29777) */
 function limpiarCerosIzquierda(codigo) {
   if (!codigo) return codigo;
   let limpio = codigo.toString().trim();
@@ -731,7 +717,6 @@ function capturarCodigo() {
   });
 }
 
-/** Para cuando no hay código de barras físico y el número está escrito a mano en la etiqueta */
 function buscarCodigoManual() {
   const input = document.getElementById('input-codigo-manual');
   const codigo = limpiarCerosIzquierda(input.value.trim());
@@ -744,7 +729,6 @@ function buscarCodigoManual() {
 function buscarPorCodigo(codigo, alTerminar) {
   const codigoNormalizado = codigo.toString().trim();
 
-  // Sin señal: ni se intenta la llamada al servidor, se busca directo en la copia local
   if (!navigator.onLine) {
     buscarPorCodigoOffline(codigoNormalizado, alTerminar);
     return;
@@ -773,14 +757,10 @@ function buscarPorCodigo(codigo, alTerminar) {
       }
     })
     .catch(() => {
-      // El navegador puede creer que hay señal (wifi hospitalario sin salida real a internet);
-      // si la llamada de verdad falla, se intenta igual con la copia guardada en el celular.
       buscarPorCodigoOffline(codigoNormalizado, alTerminar);
     });
 }
 
-/** Busca el código en la copia local guardada en este celular (equipos ya vistos antes).
- *  No reemplaza a la base de datos real, pero permite seguir trabajando sin señal. */
 function buscarPorCodigoOffline(codigoNormalizado, alTerminar) {
   document.getElementById('codigo-en-vivo').classList.add('oculto');
   ultimoCodigoDetectado = null;
@@ -797,7 +777,6 @@ function buscarPorCodigoOffline(codigoNormalizado, alTerminar) {
   if (alTerminar) setTimeout(alTerminar, 400);
 }
 
-/** Vuelve directo a la pestaña de escaneo y reanuda la cámara si estaba pausada */
 function escanearOtro() {
   reiniciar();
   cambiarTab('scan');
@@ -809,7 +788,6 @@ function escanearOtro() {
   }
 }
 
-/** Vuelve a la búsqueda manual conservando la sede ya elegida */
 function buscarOtroEquipo() {
   reiniciar();
   cambiarTab('manual');
@@ -855,7 +833,7 @@ function configurarCombo(inputId, opcionesId, obtenerLista, obtenerEtiqueta, alS
 
 /* ---------- Carga de datos ---------- */
 function cargarSedes() {
-  if (sedesTodas.length > 0) return; // ya están cargadas
+  if (sedesTodas.length > 0) return;
   fetch(`${API_URL}?accion=listarSedes&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
     .then(data => {
@@ -883,8 +861,6 @@ function seleccionarSede(sede) {
   cargarEquiposDeSede();
 }
 
-/** Trae todos los equipos de la sede elegida (el filtro por campo se hace en el buscador).
- *  Si falla por falta de señal, usa la última copia guardada de esa sede en este celular. */
 function cargarEquiposDeSede() {
   if (!sedeSeleccionada) return;
   const inputEquipo = document.getElementById('input-equipo');
@@ -942,14 +918,9 @@ configurarCombo('input-equipo', 'opciones-equipo', () => equiposTodos,
 
 let origenBusqueda = 'scan';
 
-/* ---------- Búsqueda global (en TODOS los establecimientos a la vez) ---------- */
-
-/** Trae la lista completa de equipos de la base, sin filtrar por sede. Se pide una sola vez
- *  por carga de página; el filtro por serie/marca/modelo/descripción se hace en el buscador.
- *  Usa la versión liviana del backend (sin calcular vigencia/vida útil de cada equipo) para
- *  que cargue rápido aunque la red tenga miles de equipos. Sin señal, usa la última copia. */
+/* ---------- Búsqueda global (en TODOS los establecimientos) ---------- */
 function cargarEquiposGlobal() {
-  if (equiposTodosGlobal.length > 0) return; // ya está cargada
+  if (equiposTodosGlobal.length > 0) return;
   const inputEquipoGlobal = document.getElementById('input-equipo-global');
   fetch(`${API_URL}?accion=listarTodosLosEquiposLiviano&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
@@ -977,7 +948,7 @@ function cargarEquiposGlobal() {
     });
 }
 
-let campoFiltroEquipoGlobal = 'serie'; // arranca en Serie: el caso más común para buscar en todos lados
+let campoFiltroEquipoGlobal = 'serie';
 function elegirFiltroGlobal(campo, boton) {
   campoFiltroEquipoGlobal = campo;
   document.querySelectorAll('#filtro-tabs-global .tab-btn').forEach(b => b.classList.remove('activo'));
@@ -993,9 +964,7 @@ configurarCombo('input-equipo-global', 'opciones-equipo-global', () => equiposTo
   (eq) => eq[campoFiltroEquipoGlobal] || ''
 );
 
-/** Al elegir un resultado del buscador global (que trae datos livianos), se pide el detalle
- *  completo (vigencia, vida útil, última actualización) SOLO de ese equipo puntual — así el
- *  cálculo pesado no se hace para toda la red, solo para el equipo que sí se va a actualizar. */
+/** Al elegir un resultado global (datos livianos), se pide el detalle completo de ese equipo */
 function seleccionarEquipoGlobal(equipoLiviano) {
   const input = document.getElementById('input-equipo-global');
   input.disabled = true;
@@ -1014,7 +983,6 @@ function seleccionarEquipoGlobal(equipoLiviano) {
     })
     .catch(() => {
       input.disabled = false;
-      // Sin señal real: se intenta con lo que ya se tenga guardado por código, si acaso
       const posible = (equipoLiviano.codigoBarras && buscarEnIndiceLocal(equipoLiviano.codigoBarras)) ||
         (equipoLiviano.codigoPatrimonial && buscarEnIndiceLocal(equipoLiviano.codigoPatrimonial));
       if (posible) {
@@ -1026,7 +994,7 @@ function seleccionarEquipoGlobal(equipoLiviano) {
     });
 }
 
-/* ---------- Combos de Sede y Servicio dentro del Paso 2 (actualizar) ---------- */
+/* ---------- Combos de Sede y Servicio dentro del Paso 2 ---------- */
 configurarCombo('input-sede-editar', 'opciones-sede-editar', () => sedesTodas, (s) => s, (sede) => {
   document.getElementById('input-sede-editar').value = sede;
   cargarServiciosParaEditar(sede);
@@ -1036,8 +1004,6 @@ configurarCombo('input-servicio-editar', 'opciones-servicio-editar', () => servi
   document.getElementById('input-servicio-editar').value = servicio;
 });
 
-/** Trae la lista de servicios ya usados en una sede, para ofrecerlos como filtro al actualizar.
- *  Sin señal, usa la última copia guardada de esa sede (el campo sigue siendo editable a mano). */
 function cargarServiciosParaEditar(sede) {
   serviciosEditar = [];
   if (!sede) return;
@@ -1053,9 +1019,8 @@ function cargarServiciosParaEditar(sede) {
     });
 }
 
-/* ---------- Vigencia en vivo (vista previa mientras se elige la fecha de alta) ---------- */
+/* ---------- Vigencia en vivo ---------- */
 function calcularVigenciaTextoDesde(valorFecha) {
-  // valorFecha viene como "AAAA-MM-DD" de un <input type="date">
   if (!valorFecha) return null;
   const partes = valorFecha.split('-').map(Number);
   const fecha = new Date(partes[0], partes[1] - 1, partes[2]);
@@ -1112,7 +1077,6 @@ function mostrarEquipo(equipo) {
     <div class="fila-dato">Estado actual: <b>${equipo.estadoActual}</b></div>
   `;
 
-  // --- Bloque de última actualización registrada (historial más reciente, no acumulado) ---
   const bloqueActualizacion = document.getElementById('bloque-ultima-actualizacion');
   if (equipo.fechaUltimaActualizacion) {
     bloqueActualizacion.classList.remove('sin-datos');
@@ -1126,30 +1090,25 @@ function mostrarEquipo(equipo) {
     bloqueActualizacion.innerHTML = '🕓 Este equipo aún no registra actualizaciones previas en el sistema.';
   }
 
+  document.getElementById('input-descripcion-editar').value = equipo.descripcion || '';
   document.getElementById('input-sede-editar').value = equipo.sede || '';
   document.getElementById('input-servicio-editar').value = equipo.dependencia || '';
   document.getElementById('input-marca').value = (equipo.marca && equipo.marca !== 'SIN MARCA.') ? equipo.marca : '';
   document.getElementById('input-modelo').value = (equipo.modelo && equipo.modelo !== 'SIN MODELO') ? equipo.modelo : '';
   document.getElementById('input-serie').value = (equipo.serie && equipo.serie !== 'SIN SERIE') ? equipo.serie : '';
 
-  // Precarga los servicios ya usados en la sede del equipo, para que el combo de Servicio funcione de inmediato
   cargarServiciosParaEditar(equipo.sede);
 
-  // Fecha de alta: se precarga con la que ya tiene el equipo (equipo.fechaAltaISO = "AAAA-MM-DD")
   const inputFechaAlta = document.getElementById('input-fecha-alta-editar');
   inputFechaAlta.value = equipo.fechaAltaISO || '';
   inputFechaAlta.max = new Date().toISOString().split('T')[0];
   calcularVigenciaPreviewEditar();
 
-  // El estado actual queda preseleccionado: si solo se va a corregir sede/marca/serie/fecha de
-  // alta, no hace falta volver a tocar el estado para poder guardar.
   preseleccionarEstadoActual(equipo.estadoActual);
 
-  // Si ya existe una observación previa, se ofrece copiarla en vez de tener que escribirla de nuevo
   const btnCopiarObs = document.getElementById('btn-copiar-observacion');
   if (btnCopiarObs) btnCopiarObs.classList.toggle('oculto', !equipo.ultimaObservacion);
 
-  // Guarda este equipo en la copia local del celular, para poder encontrarlo luego sin señal
   actualizarIndiceLocal([equipo]);
 
   if (equipo.pendienteSync) {
@@ -1162,22 +1121,19 @@ function seleccionarEstado(estado, btnClickeado) {
   document.querySelectorAll('#paso-actualizar .estado-btn').forEach(b => b.classList.remove('sel'));
   const boton = btnClickeado || document.querySelector(`#paso-actualizar .estado-btn[data-estado="${estado}"]`);
   if (boton) boton.classList.add('sel');
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
+  const requiereObservacion = ESTADOS_CON_MOTIVO.includes(estado);
   document.getElementById('campo-observacion').classList.toggle('oculto', !requiereObservacion);
   if (!requiereObservacion) document.getElementById('input-observacion').value = '';
   validarFormulario();
 }
 
-/** Al abrir un equipo que ya tiene un estado registrado, se deja preseleccionado: así el
- *  técnico no tiene que volver a elegirlo si solo va a corregir sede, marca, serie o fecha de alta. */
+/** Deja preseleccionado el estado actual del equipo (si coincide con alguno de los botones) */
 function preseleccionarEstadoActual(estadoActual) {
-  const estadosValidos = ['OPERATIVO', 'OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'];
+  const estadosValidos = ['OPERATIVO', 'OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'REPOSICIÓN'];
   if (!estadosValidos.includes(estadoActual)) return;
   seleccionarEstado(estadoActual);
 }
 
-/** Copia el motivo de la última actualización registrada, para no tener que escribirlo de nuevo
- *  cuando la razón del estado sigue siendo la misma. */
 function copiarObservacionAnterior() {
   if (equipoActual && equipoActual.ultimaObservacion) {
     document.getElementById('input-observacion').value = equipoActual.ultimaObservacion;
@@ -1187,9 +1143,10 @@ function copiarObservacionAnterior() {
 
 function validarFormulario() {
   const tecnico = document.getElementById('select-tecnico').value;
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoSeleccionado);
+  const requiereObservacion = ESTADOS_CON_MOTIVO.includes(estadoSeleccionado);
   const observacion = document.getElementById('input-observacion').value.trim();
-  const valido = estadoSeleccionado && tecnico && (!requiereObservacion || observacion);
+  const descripcion = document.getElementById('input-descripcion-editar').value.trim();
+  const valido = descripcion && estadoSeleccionado && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-guardar').disabled = !valido;
 }
 
@@ -1200,6 +1157,7 @@ function guardarActualizacion() {
 
   const payload = {
     fila: equipoActual.fila,
+    descripcion: document.getElementById('input-descripcion-editar').value.trim(),
     codigoBarras: equipoActual.codigoBarras,
     codigoPatrimonial: equipoActual.codigoPatrimonial,
     estado: estadoSeleccionado,
@@ -1246,6 +1204,7 @@ function reiniciar() {
   estadoRegistroSeleccionado = null;
   serviciosEditar = [];
   document.getElementById('select-tecnico').value = '';
+  document.getElementById('input-descripcion-editar').value = '';
   document.getElementById('input-sede-editar').value = '';
   document.getElementById('input-servicio-editar').value = '';
   document.getElementById('input-marca').value = '';
@@ -1286,7 +1245,7 @@ function reiniciar() {
   document.getElementById('paso-buscar').classList.remove('oculto');
 }
 
-/** Después de guardar, regresa TODO al estado inicial de la app (pestaña de escaneo, sin búsquedas previas) */
+/** Después de guardar, regresa todo al estado inicial de la app */
 function volverAlInicio() {
   reiniciar();
   cambiarTab('scan');
@@ -1305,7 +1264,7 @@ function volverAlInicio() {
   if (lectorInstancia) {
     try { lectorInstancia.resume(); } catch (e) {}
   }
-  cargarEstadisticas(); // el equipo recién guardado puede haber cambiado el % global
+  cargarEstadisticas();
 }
 
 /* ---------- Registrar equipo nuevo ---------- */
@@ -1313,7 +1272,6 @@ configurarCombo('reg-input-sede', 'reg-opciones-sede', () => sedesTodas, (s) => 
   document.getElementById('reg-input-sede').value = sede;
 });
 
-/** Abre el registro desde el flujo de escaneo (ya trae un código detectado que no existe en la BBDD) */
 function abrirRegistro() {
   document.getElementById('paso-buscar').classList.add('oculto');
   document.getElementById('paso-registrar').classList.remove('oculto');
@@ -1322,9 +1280,6 @@ function abrirRegistro() {
   if (sedesTodas.length === 0) cargarSedes();
 }
 
-/** Abre el registro desde la búsqueda manual, cuando el equipo tampoco aparece en el listado
- *  de la sede elegida. No hay código detectado, así que el campo queda vacío y editable
- *  (el técnico puede escribirlo si lo tiene a la mano, o dejarlo en blanco). */
 function abrirRegistroDesdeManual() {
   codigoParaRegistrar = '';
   document.getElementById('paso-buscar').classList.add('oculto');
@@ -1343,7 +1298,7 @@ function seleccionarEstadoRegistro(estado, btnClickeado) {
   botones.forEach(b => b.classList.remove('sel'));
   const boton = btnClickeado || document.querySelector(`#paso-registrar .estado-btn[data-estado="${estado}"]`);
   if (boton) boton.classList.add('sel');
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estado);
+  const requiereObservacion = ESTADOS_CON_MOTIVO.includes(estado);
   document.getElementById('reg-campo-observacion').classList.toggle('oculto', !requiereObservacion);
   if (!requiereObservacion) document.getElementById('reg-observacion').value = '';
   validarFormularioRegistro();
@@ -1354,7 +1309,7 @@ function validarFormularioRegistro() {
   const fechaAlta = document.getElementById('reg-fecha-alta').value;
   const fechaAltaValida = fechaAlta && new Date(fechaAlta) <= new Date();
   const tecnico = document.getElementById('reg-tecnico').value;
-  const requiereObservacion = ['OPERATIVO PARCIALMENTE', 'INOPERATIVO', 'DE BAJA'].includes(estadoRegistroSeleccionado);
+  const requiereObservacion = ESTADOS_CON_MOTIVO.includes(estadoRegistroSeleccionado);
   const observacion = document.getElementById('reg-observacion').value.trim();
   const valido = descripcion && fechaAltaValida && tecnico && (!requiereObservacion || observacion);
   document.getElementById('btn-registrar').disabled = !valido;
@@ -1420,8 +1375,7 @@ function mostrarMensaje(id, texto, tipo, persistente) {
   }
 }
 
-/** Trae y pinta el % global de equipos con al menos una actualización registrada.
- *  Sin señal, muestra el último dato guardado en este celular. */
+/** Trae y pinta el % global de equipos con al menos una actualización registrada */
 function cargarEstadisticas() {
   fetch(`${API_URL}?accion=estadisticas&_ts=${Date.now()}`, { cache: 'no-store' })
     .then(r => r.json())
@@ -1449,13 +1403,12 @@ function cargarEstadisticas() {
     });
 }
 
-// La cámara ya no se inicia sola al cargar la página; el técnico la activa con el botón.
-// Las sedes y estadísticas sí se precargan en segundo plano para que la app abra ya lista.
+// La cámara se activa con el botón; sedes y estadísticas se precargan en segundo plano.
 cargarSedes();
 cargarEstadisticas();
 actualizarIndicadorConexion();
 actualizarIndicadorPendientes();
-if (navigator.onLine) sincronizarPendientes(false); // por si quedaron cambios pendientes de una sesión anterior
+if (navigator.onLine) sincronizarPendientes(false);
 
 window.addEventListener('online', () => { actualizarIndicadorConexion(); sincronizarPendientes(false); });
 window.addEventListener('offline', actualizarIndicadorConexion);
@@ -1478,7 +1431,7 @@ function forzarMayusculas(id) {
   });
 }
 [
-  'input-marca', 'input-modelo', 'input-serie', 'input-sede-editar', 'input-servicio-editar', 'input-observacion',
+  'input-descripcion-editar', 'input-marca', 'input-modelo', 'input-serie', 'input-sede-editar', 'input-servicio-editar', 'input-observacion',
   'input-codigo-manual', 'reg-codigo',
   'reg-descripcion', 'reg-servicio', 'reg-marca', 'reg-modelo', 'reg-serie', 'reg-observacion',
 ].forEach(forzarMayusculas);
