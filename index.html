@@ -211,43 +211,6 @@
   .stats-barra-relleno { height: 100%; width: 0%; background: var(--primario); border-radius: 6px; transition: width 0.4s ease; }
   .stats-detalle { margin-top: 6px; font-size: 12px; color: var(--texto-suave); }
 
-  /* Avance por RIS y responsable */
-  .zonas-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .zonas-cabecera .paso-badge { margin-bottom: 0; }
-  .btn-refrescar-zonas {
-    width: auto; margin-top: 0; padding: 6px 10px; font-size: 12px; font-weight: 700;
-    background: var(--superficie); color: var(--primario); border: 1.5px solid var(--primario); border-radius: 8px;
-  }
-  .zona-item { border: 1px solid var(--borde); border-radius: 12px; padding: 12px 14px; margin-top: 10px; background: var(--superficie); }
-  .zona-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-  .zona-nombre { font-family: "Sora", sans-serif; font-size: 13.5px; font-weight: 700; color: var(--tinta); line-height: 1.3; }
-  .zona-responsable { font-size: 12px; color: var(--texto-suave); margin-top: 2px; }
-  .zona-responsable b { color: var(--texto); font-weight: 700; }
-  .zona-pct { font-family: "Sora", sans-serif; font-size: 20px; font-weight: 800; white-space: nowrap; }
-  .zona-barra { width: 100%; height: 8px; border-radius: 6px; background: var(--fondo); overflow: hidden; margin-top: 8px; }
-  .zona-barra-relleno { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
-  .zona-detalle { margin-top: 5px; font-size: 12px; color: var(--texto-suave); }
-  .nivel-bajo { color: var(--rojo); }
-  .nivel-medio { color: var(--ambar); }
-  .nivel-alto { color: var(--verde); }
-  .fondo-bajo { background: var(--rojo); }
-  .fondo-medio { background: var(--ambar); }
-  .fondo-alto { background: var(--verde); }
-  .zona-sedes { margin-top: 8px; }
-  .zona-sedes summary {
-    cursor: pointer; font-size: 12px; font-weight: 700; color: var(--primario);
-    padding: 6px 0; list-style: none;
-  }
-  .zona-sedes summary::-webkit-details-marker { display: none; }
-  .zona-sedes summary::before { content: "▸ "; }
-  .zona-sedes[open] summary::before { content: "▾ "; }
-  .sede-fila { padding: 8px 0; border-top: 1px dashed var(--borde); }
-  .sede-fila-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--texto); }
-  .sede-fila-top span:last-child { font-weight: 800; white-space: nowrap; }
-  .sede-barra { width: 100%; height: 5px; border-radius: 4px; background: var(--fondo); overflow: hidden; margin-top: 4px; }
-  .sede-barra-relleno { height: 100%; border-radius: 4px; }
-  .sede-conteo { font-size: 11px; color: var(--texto-suave); margin-top: 2px; }
-
   /* Estado de conexión y cambios pendientes */
   .conexion-fila { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; gap: 8px; }
   .indicador-conexion { font-size: 12px; font-weight: 700; color: var(--verde); }
@@ -295,15 +258,6 @@
       <span id="indicador-pendientes" class="indicador-pendientes oculto"></span>
     </div>
     <button type="button" class="btn-secundario oculto" id="btn-sincronizar" onclick="sincronizarPendientes(true)">🔄 Sincronizar cambios pendientes</button>
-  </div>
-
-  <!-- Avance por RIS y responsable -->
-  <div class="tarjeta" id="tarjeta-zonas">
-    <div class="zonas-cabecera">
-      <span class="paso-badge">Avance por RIS y responsable</span>
-      <button type="button" class="btn-refrescar-zonas" onclick="cargarEstadisticasZonas(true)">🔄 Refrescar</button>
-    </div>
-    <div id="zonas-contenido" class="instructivo">Cargando avance por RIS...</div>
   </div>
 
   <!-- Paso 1: identificar el equipo -->
@@ -679,7 +633,6 @@ function sincronizarPendientes(manual) {
         restante.shift();
         guardarCola(restante);
         cargarEstadisticas();
-        cargarEstadisticasZonas();
         sincronizarPendientes(false);
       } else if (manual) {
         mostrarMensaje('msg-guardar', 'No se pudo sincronizar: ' + (data.error || 'error desconocido'), 'error');
@@ -1312,7 +1265,6 @@ function volverAlInicio() {
     try { lectorInstancia.resume(); } catch (e) {}
   }
   cargarEstadisticas();
-  cargarEstadisticasZonas();
 }
 
 /* ---------- Registrar equipo nuevo ---------- */
@@ -1451,77 +1403,9 @@ function cargarEstadisticas() {
     });
 }
 
-/* ---------- Avance por RIS y responsable ---------- */
-function claseNivel(pct) {
-  if (pct < 40) return 'bajo';
-  if (pct < 70) return 'medio';
-  return 'alto';
-}
-
-function pintarZonas(zonas, sinConexion) {
-  const cont = document.getElementById('zonas-contenido');
-  if (!zonas || !zonas.length) {
-    cont.className = 'instructivo';
-    cont.textContent = 'No hay datos por RIS todavía.';
-    return;
-  }
-  cont.className = '';
-  cont.innerHTML = zonas.map(z => {
-    const nivel = claseNivel(z.porcentaje);
-    const sedesHtml = (z.sedes || []).map(s => {
-      const nv = claseNivel(s.porcentaje);
-      return `
-        <div class="sede-fila">
-          <div class="sede-fila-top"><span>${s.sede}</span><span class="nivel-${nv}">${s.porcentaje}%</span></div>
-          <div class="sede-barra"><div class="sede-barra-relleno fondo-${nv}" style="width:${Math.min(s.porcentaje, 100)}%"></div></div>
-          <div class="sede-conteo">${s.actualizados} de ${s.totalEquipos} equipos</div>
-        </div>`;
-    }).join('');
-    return `
-      <div class="zona-item">
-        <div class="zona-top">
-          <div>
-            <div class="zona-nombre">${z.zona}</div>
-            <div class="zona-responsable">Responsable: <b>${z.responsable}</b></div>
-          </div>
-          <div class="zona-pct nivel-${nivel}">${z.porcentaje}%</div>
-        </div>
-        <div class="zona-barra"><div class="zona-barra-relleno fondo-${nivel}" style="width:${Math.min(z.porcentaje, 100)}%"></div></div>
-        <div class="zona-detalle">${z.actualizados} de ${z.totalEquipos} equipos actualizados · ${(z.sedes || []).length} establecimientos</div>
-        ${sedesHtml ? `<details class="zona-sedes"><summary>Ver establecimientos (los más atrasados primero)</summary>${sedesHtml}</details>` : ''}
-      </div>`;
-  }).join('') + (sinConexion ? '<div class="zona-detalle" style="margin-top:10px">📴 Dato guardado, sin conexión.</div>' : '');
-}
-
-function cargarEstadisticasZonas(manual) {
-  const cont = document.getElementById('zonas-contenido');
-  if (manual) { cont.className = 'instructivo'; cont.textContent = 'Actualizando avance por RIS...'; }
-  fetch(`${API_URL}?accion=estadisticasPorZona&_ts=${Date.now()}`, { cache: 'no-store' })
-    .then(r => r.json())
-    .then(data => {
-      if (data.error) {
-        cont.className = 'instructivo';
-        cont.textContent = 'No se pudo cargar el avance por RIS: ' + data.error;
-        return;
-      }
-      pintarZonas(data.zonas, false);
-      guardarCacheLista('cache_zonas', data.zonas);
-    })
-    .catch(() => {
-      const cache = leerCacheLista('cache_zonas');
-      if (cache) {
-        pintarZonas(cache, true);
-      } else {
-        cont.className = 'instructivo';
-        cont.textContent = 'Sin conexión — no se pudo cargar el avance por RIS.';
-      }
-    });
-}
-
 // La cámara se activa con el botón; sedes y estadísticas se precargan en segundo plano.
 cargarSedes();
 cargarEstadisticas();
-cargarEstadisticasZonas();
 actualizarIndicadorConexion();
 actualizarIndicadorPendientes();
 if (navigator.onLine) sincronizarPendientes(false);
