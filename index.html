@@ -211,50 +211,33 @@
   .stats-barra-relleno { height: 100%; width: 0%; background: var(--primario); border-radius: 4px; transition: width 0.4s ease; }
   .stats-detalle { margin-top: 4px; font-size: 10px; color: var(--texto-suave); }
 
-  /* Avance por RIS y responsable — VERSIÓN COMPACTA (cuadro pequeño con scroll interno) */
-  .tarjeta-zonas { padding: 10px 12px; }
-  .zonas-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .zonas-cabecera .paso-badge { margin-bottom: 0; font-size: 10.5px; }
+  /* Avance por RIS y responsable — FILAS COMPACTAS (una línea por RIS) */
+  .tarjeta-zonas { padding: 8px 10px; margin-bottom: 10px; }
+  .zonas-cabecera { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .zonas-cabecera .paso-badge { margin-bottom: 0; font-size: 10px; }
   .btn-refrescar-zonas {
-    width: auto; margin-top: 0; padding: 4px 8px; font-size: 11px; font-weight: 700;
+    width: auto; margin-top: 0; padding: 3px 7px; font-size: 10px; font-weight: 700;
     background: var(--superficie); color: var(--primario); border: 1.5px solid var(--primario); border-radius: 8px;
   }
-  .zonas-caja {
-    max-height: 190px; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    border: 1px solid var(--borde); border-radius: 10px; background: var(--fondo);
-    padding: 0 8px;
+  .zonas-caja { max-height: 210px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .zonas-caja .instructivo { margin: 0; padding: 6px 0; font-size: 11px; }
+  .zona-fila {
+    display: grid; grid-template-columns: 1fr auto auto; align-items: center; column-gap: 8px;
+    padding: 4px 0 5px; border-bottom: 1px solid var(--borde); position: relative;
   }
-  .zonas-caja .instructivo { margin: 0; padding: 10px 2px; font-size: 12px; }
-  .zona-item { padding: 7px 0; border-bottom: 1px solid var(--borde); }
-  .zona-item:last-child { border-bottom: none; }
-  .zona-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-  .zona-nombre { font-family: "Sora", sans-serif; font-size: 11.5px; font-weight: 700; color: var(--tinta); line-height: 1.25; }
-  .zona-responsable { font-size: 10px; color: var(--texto-suave); }
-  .zona-responsable b { color: var(--texto); font-weight: 700; }
-  .zona-pct { font-family: "Sora", sans-serif; font-size: 14px; font-weight: 800; white-space: nowrap; }
-  .zona-barra { width: 100%; height: 4px; border-radius: 4px; background: #e3e8e8; overflow: hidden; margin-top: 5px; }
-  .zona-barra-relleno { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
-  .zona-detalle { margin-top: 2px; font-size: 10px; color: var(--texto-suave); }
+  .zona-fila:last-child { border-bottom: none; }
+  .zona-nombre { font-family: "Sora", sans-serif; font-size: 10.5px; font-weight: 700; color: var(--tinta); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .zona-nombre small { font-family: "Inter", sans-serif; font-weight: 600; font-size: 9px; color: var(--texto-suave); margin-left: 4px; }
+  .zona-conteo { font-size: 9.5px; color: var(--texto-suave); white-space: nowrap; }
+  .zona-pct { font-family: "Sora", sans-serif; font-size: 12px; font-weight: 800; white-space: nowrap; min-width: 38px; text-align: right; }
+  .zona-barra { grid-column: 1 / -1; height: 3px; border-radius: 3px; background: #e3e8e8; overflow: hidden; margin-top: 3px; }
+  .zona-barra-relleno { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
   .nivel-bajo { color: var(--rojo); }
   .nivel-medio { color: var(--ambar); }
   .nivel-alto { color: var(--verde); }
   .fondo-bajo { background: var(--rojo); }
   .fondo-medio { background: var(--ambar); }
   .fondo-alto { background: var(--verde); }
-  .zona-sedes { margin-top: 2px; }
-  .zona-sedes summary {
-    cursor: pointer; font-size: 10px; font-weight: 700; color: var(--primario);
-    padding: 3px 0; list-style: none;
-  }
-  .zona-sedes summary::-webkit-details-marker { display: none; }
-  .zona-sedes summary::before { content: "▸ "; }
-  .zona-sedes[open] summary::before { content: "▾ "; }
-  .sede-fila { padding: 5px 0; border-top: 1px dashed var(--borde); }
-  .sede-fila-top { display: flex; justify-content: space-between; gap: 8px; font-size: 10.5px; font-weight: 600; color: var(--texto); }
-  .sede-fila-top span:last-child { font-weight: 800; white-space: nowrap; }
-  .sede-barra { width: 100%; height: 3px; border-radius: 3px; background: #e3e8e8; overflow: hidden; margin-top: 3px; }
-  .sede-barra-relleno { height: 100%; border-radius: 3px; }
-  .sede-conteo { font-size: 9.5px; color: var(--texto-suave); margin-top: 1px; }
 
   /* Estado de conexión y cambios pendientes */
   .conexion-fila { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 8px; }
@@ -1474,28 +1457,14 @@ function pintarZonas(zonas, sinConexion) {
   }
   cont.innerHTML = zonas.map(z => {
     const nivel = claseNivel(z.porcentaje);
-    const sedesHtml = (z.sedes || []).map(s => {
-      const nv = claseNivel(s.porcentaje);
-      return `
-        <div class="sede-fila">
-          <div class="sede-fila-top"><span>${s.sede}</span><span class="nivel-${nv}">${s.porcentaje}%</span></div>
-          <div class="sede-barra"><div class="sede-barra-relleno fondo-${nv}" style="width:${Math.min(s.porcentaje, 100)}%"></div></div>
-          <div class="sede-conteo">${s.actualizados} de ${s.totalEquipos} equipos</div>
-        </div>`;
-    }).join('');
     return `
-      <div class="zona-item">
-        <div class="zona-top">
-          <div>
-            <div class="zona-nombre">${z.zona}</div>
-            <div class="zona-responsable">Resp.: <b>${z.responsable}</b></div>
-          </div>
-          <div class="zona-pct nivel-${nivel}">${z.porcentaje}%</div>
-        </div>
+      <div class="zona-fila">
+        <div class="zona-nombre">${z.zona}<small>${z.responsable}</small></div>
+        <div class="zona-conteo">${z.actualizados}/${z.totalEquipos}</div>
+        <div class="zona-pct nivel-${nivel}">${z.porcentaje}%</div>
         <div class="zona-barra"><div class="zona-barra-relleno fondo-${nivel}" style="width:${Math.min(z.porcentaje, 100)}%"></div></div>
-        <div class="zona-detalle">${z.actualizados} de ${z.totalEquipos} equipos · ${(z.sedes || []).length} establec.</div>
       </div>`;
-  }).join('') + (sinConexion ? '<div class="zona-detalle" style="padding:6px 0">📴 Dato guardado, sin conexión.</div>' : '');
+  }).join('') + (sinConexion ? '<div class="instructivo">📴 Dato guardado, sin conexión.</div>' : '');
 }
 
 function cargarEstadisticasZonas(manual) {
