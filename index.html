@@ -1494,7 +1494,6 @@ function pintarZonas(zonas, sinConexion) {
         </div>
         <div class="zona-barra"><div class="zona-barra-relleno fondo-${nivel}" style="width:${Math.min(z.porcentaje, 100)}%"></div></div>
         <div class="zona-detalle">${z.actualizados} de ${z.totalEquipos} equipos · ${(z.sedes || []).length} establec.</div>
-        ${sedesHtml ? `<details class="zona-sedes"><summary>Ver establecimientos</summary>${sedesHtml}</details>` : ''}
       </div>`;
   }).join('') + (sinConexion ? '<div class="zona-detalle" style="padding:6px 0">📴 Dato guardado, sin conexión.</div>' : '');
 }
