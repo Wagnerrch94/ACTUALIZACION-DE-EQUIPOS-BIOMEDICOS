@@ -1455,7 +1455,8 @@ function pintarZonas(zonas, sinConexion) {
     cont.innerHTML = '<div class="instructivo">No hay datos por RIS todavía.</div>';
     return;
   }
-  cont.innerHTML = zonas.map(z => {
+  const ordenadas = zonas.slice().sort((a, b) => b.porcentaje - a.porcentaje);
+  cont.innerHTML = ordenadas.map(z => {
     const nivel = claseNivel(z.porcentaje);
     return `
       <div class="zona-fila">
