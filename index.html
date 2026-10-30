@@ -749,7 +749,10 @@ function limpiarCerosIzquierda(codigo) {
 
 /** Parte del código antes del guion, sin ceros a la izquierda: "62039-TA" -> "62039" */
 function codigoBase(c) {
-  return limpiarCerosIzquierda((c || '').toString().trim().split('-')[0]).toUpperCase();
+  const crudo = (c || '').toString().trim().toUpperCase().split('-')[0];
+  const numeros = crudo.match(/^\d+/);           // dígitos iniciales: "020887R" -> "020887"
+  if (!numeros) return crudo;                     // código sin números al inicio: se compara completo
+  return numeros[0].replace(/^0+(?=\d)/, '');    // sin ceros a la izquierda: "020887" -> "20887"
 }
 
 /** Busca equipos cuyo código (barras o patrimonial) coincida en los dígitos antes del guion */
