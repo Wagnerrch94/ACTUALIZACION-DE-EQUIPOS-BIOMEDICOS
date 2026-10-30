@@ -312,6 +312,7 @@
       <div id="codigo-en-vivo" class="mensaje oculto"></div>
       <button id="btn-capturar" class="btn-primario oculto" onclick="capturarCodigo()" disabled>📸 Capturar y buscar</button>
       <div id="msg-scan" class="mensaje oculto"></div>
+      <div id="lista-coincidencias" class="oculto"></div>
       <button id="btn-ir-registrar" class="oculto btn-registro" onclick="abrirRegistro()">➕ Registrar este equipo como nuevo</button>
 
       <label>¿No hay código de barras? Escribe el número a mano</label>
@@ -574,7 +575,11 @@ function actualizarIndiceLocal(equipos) {
 function buscarEnIndiceLocal(codigo) {
   let indice = {};
   try { indice = JSON.parse(localStorage.getItem(CACHE_INDICE_KEY) || '{}'); } catch (e) { return null; }
-  return indice[codigo.toString().trim().toUpperCase()] || null;
+  const exacto = indice[codigo.toString().trim().toUpperCase()];
+  if (exacto) return exacto;
+  const base = codigoBase(codigo);
+  const clave = Object.keys(indice).find(k => codigoBase(k) === base);
+  return clave ? indice[clave] : null;
 }
 
 function actualizarIndicadorConexion() {
@@ -742,6 +747,68 @@ function limpiarCerosIzquierda(codigo) {
   return limpio;
 }
 
+/** Parte del código antes del guion, sin ceros a la izquierda: "62039-TA" -> "62039" */
+function codigoBase(c) {
+  return limpiarCerosIzquierda((c || '').toString().trim().split('-')[0]).toUpperCase();
+}
+
+/** Busca equipos cuyo código (barras o patrimonial) coincida en los dígitos antes del guion */
+function buscarPorPrefijo(codigo, alTerminar) {
+  const base = codigoBase(codigo);
+  const lista = document.getElementById('lista-coincidencias');
+  if (lista) { lista.innerHTML = ''; lista.classList.add('oculto'); }
+
+  const sinResultado = () => {
+    mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error', true);
+    codigoParaRegistrar = codigo;
+    document.getElementById('btn-ir-registrar').classList.remove('oculto');
+    if (alTerminar) setTimeout(alTerminar, 400);
+  };
+  if (!base) { sinResultado(); return; }
+
+  mostrarMensaje('msg-scan', `Buscando equipos con código "${base}-..."`, 'exito', true);
+  fetch(`${API_URL}?accion=listarTodosLosEquiposLiviano&_ts=${Date.now()}`, { cache: 'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      const todos = data.equipos || [];
+      if (todos.length) guardarCacheLista('cache_equipos_global', todos);
+      const coincidencias = todos.filter(eq =>
+        [eq.codigoBarras, eq.codigoPatrimonial].some(c => c && codigoBase(c) === base));
+      if (coincidencias.length === 0) { sinResultado(); return; }
+      if (coincidencias.length === 1) { cargarEquipoPorFila(coincidencias[0].fila, alTerminar); return; }
+
+      mostrarMensaje('msg-scan', `Hay ${coincidencias.length} equipos con el código "${base}". Elige el correcto:`, 'exito', true);
+      lista.innerHTML = coincidencias.map((eq, i) =>
+        `<button type="button" class="btn-secundario" data-i="${i}">${eq.codigoBarras || eq.codigoPatrimonial} — ${eq.descripcion} — 🏥 ${eq.sede || 'SIN SEDE'}</button>`
+      ).join('');
+      lista.classList.remove('oculto');
+      lista.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+        lista.classList.add('oculto');
+        cargarEquipoPorFila(coincidencias[+b.dataset.i].fila, alTerminar);
+      }));
+      if (alTerminar) setTimeout(alTerminar, 400);
+    })
+    .catch(() => {
+      const local = buscarEnIndiceLocal(codigo);
+      if (local) { origenBusqueda = 'scan'; mostrarEquipo(local); if (alTerminar) setTimeout(alTerminar, 300); }
+      else sinResultado();
+    });
+}
+
+function cargarEquipoPorFila(fila, alTerminar) {
+  fetch(`${API_URL}?accion=obtenerEquipoPorFila&fila=${fila}&_ts=${Date.now()}`, { cache: 'no-store' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { mostrarMensaje('msg-scan', data.error, 'error', true); }
+      else { origenBusqueda = 'scan'; actualizarIndiceLocal([data]); mostrarEquipo(data); }
+      if (alTerminar) setTimeout(alTerminar, 300);
+    })
+    .catch(() => {
+      mostrarMensaje('msg-scan', 'Sin conexión — intenta de nuevo cuando haya señal.', 'error', true);
+      if (alTerminar) setTimeout(alTerminar, 300);
+    });
+}
+
 function capturarCodigo() {
   if (!ultimoCodigoDetectado) return;
   const codigo = limpiarCerosIzquierda(ultimoCodigoDetectado);
@@ -779,9 +846,8 @@ function buscarPorCodigo(codigo, alTerminar) {
       ultimoCodigoDetectado = null;
       if (data.error) {
         if (data.noEncontrado) {
-          mostrarMensaje('msg-scan', 'EQUIPO NO ENCONTRADO EN LA BASE DE DATOS', 'error', true);
-          codigoParaRegistrar = codigoNormalizado;
-          document.getElementById('btn-ir-registrar').classList.remove('oculto');
+          buscarPorPrefijo(codigoNormalizado, alTerminar);
+          return;
         } else {
           mostrarMensaje('msg-scan', `Código "${codigoNormalizado}" — ${data.error}`, 'error', true);
         }
@@ -1257,6 +1323,7 @@ function reiniciar() {
   document.getElementById('btn-guardar').textContent = 'Actualizar equipo';
   document.getElementById('btn-ir-registrar').classList.add('oculto');
   document.getElementById('msg-scan').classList.add('oculto');
+  document.getElementById('lista-coincidencias').classList.add('oculto');
   document.getElementById('bloque-ultima-actualizacion').innerHTML = '';
 
   document.getElementById('reg-codigo').value = '';
